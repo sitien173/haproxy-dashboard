@@ -51,6 +51,8 @@ def render_haproxy_config():
         for backend in BackendPool.query.order_by(BackendPool.created_at.asc()).all()
         if backend.enabled
     }
+    used_backend_ids = []
+    used_backend_set = set()
 
     for frontend in Frontend.query.order_by(Frontend.created_at.asc()).all():
         if not frontend.enabled:
@@ -58,11 +60,18 @@ def render_haproxy_config():
         backend = backend_map.get(frontend.default_backend_id) if frontend.default_backend_id else None
         if frontend.default_backend_id and not backend:
             continue
+        acl_backend = None
+        if frontend.acl and frontend.acl.backend_id:
+            acl_backend = backend_map.get(frontend.acl.backend_id)
         parts.append(_build_frontend_block(frontend, backend))
         parts.append("")
+        for candidate in (backend, acl_backend):
+            if candidate and candidate.id not in used_backend_set:
+                used_backend_set.add(candidate.id)
+                used_backend_ids.append(candidate.id)
 
-    for backend in backend_map.values():
-        parts.append(_build_backend_block(backend))
+    for backend_id in used_backend_ids:
+        parts.append(_build_backend_block(backend_map[backend_id]))
         parts.append("")
 
     return "\n".join(parts).rstrip() + "\n"
@@ -133,7 +142,7 @@ def _build_frontend_block(frontend, backend):
     acl = frontend.acl
     if acl:
         lines.append(f"    acl {acl.name} {acl.action}")
-        if acl.backend_id and acl.backend:
+        if acl.backend_id and acl.backend and acl.backend.enabled:
             lines.append(f"    use_backend {acl.backend.name} if {acl.name}")
     forbidden = frontend.forbidden_path
     if forbidden:
