@@ -215,11 +215,11 @@ body.dark-mode::before {
   transition: transform 0.2s ease;
 }
 
-.switch input:checked + .slider {
+.switch input:checked+.slider {
   background: var(--primary);
 }
 
-.switch input:checked + .slider::after {
+.switch input:checked+.slider::after {
   transform: translateX(20px);
 }
 
@@ -467,11 +467,20 @@ body.dark-mode pre {
   background: rgba(15, 23, 42, 0.6);
 }
 
+select.form-control {
+  padding: 0 !important;
+}
+
+.form-check .form-check-input {
+  margin-top: 0.6rem !important;
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
