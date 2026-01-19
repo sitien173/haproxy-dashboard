@@ -164,3 +164,73 @@ def count_frontends_and_backends():
                 backend_count += 1
 
     return frontend_count, backend_count, acl_count, layer7_count, layer4_count
+
+
+def _is_section_start(line):
+    stripped = line.strip()
+    if not stripped or stripped.startswith('#'):
+        return None
+    if stripped == 'global':
+        return ('global', None)
+    if stripped == 'defaults':
+        return ('defaults', None)
+    for keyword in ('frontend', 'backend', 'listen'):
+        if stripped.startswith(f"{keyword} "):
+            _, name = stripped.split(None, 1)
+            return (keyword, name.strip())
+    return None
+
+
+def parse_haproxy_sections():
+    sections = []
+    with open('/etc/haproxy/haproxy.cfg', 'r') as haproxy_cfg:
+        lines = haproxy_cfg.readlines()
+
+    starts = []
+    for idx, line in enumerate(lines):
+        hit = _is_section_start(line)
+        if hit:
+            starts.append((idx, hit[0], hit[1]))
+
+    for i, (start_idx, section_type, section_name) in enumerate(starts):
+        end_idx = starts[i + 1][0] if i + 1 < len(starts) else len(lines)
+        if section_type not in ('frontend', 'backend'):
+            continue
+        content = ''.join(lines[start_idx:end_idx]).rstrip() + '\n'
+        sections.append({
+            'type': section_type,
+            'name': section_name,
+            'content': content,
+        })
+    return sections
+
+
+def replace_haproxy_section(section_type, section_name, new_content):
+    with open('/etc/haproxy/haproxy.cfg', 'r') as haproxy_cfg:
+        lines = haproxy_cfg.readlines()
+
+    starts = []
+    for idx, line in enumerate(lines):
+        hit = _is_section_start(line)
+        if hit:
+            starts.append((idx, hit[0], hit[1]))
+
+    target = None
+    for i, (start_idx, item_type, item_name) in enumerate(starts):
+        if item_type == section_type and item_name == section_name:
+            end_idx = starts[i + 1][0] if i + 1 < len(starts) else len(lines)
+            target = (start_idx, end_idx)
+            break
+
+    if not target:
+        return False, f"{section_type.title()} '{section_name}' not found."
+
+    start_idx, end_idx = target
+    new_block = new_content.rstrip() + '\n'
+    new_lines = new_block.splitlines(keepends=True)
+    updated_lines = lines[:start_idx] + new_lines + lines[end_idx:]
+
+    with open('/etc/haproxy/haproxy.cfg', 'w') as haproxy_cfg:
+        haproxy_cfg.writelines(updated_lines)
+
+    return True, f"{section_type.title()} '{section_name}' updated successfully."

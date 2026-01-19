@@ -23,6 +23,8 @@
         <nav class="nav-links">
             <a href="/home" class="nav-link">Home</a>
             <a href="/" class="nav-link active">Add Frontend & Backend</a>
+            <a href="/manage" class="nav-link">Edit Frontends & Backends</a>
+            <a href="/certificates" class="nav-link">Manage Certificates</a>
             <a href="/edit" class="nav-link">Edit HAProxy Config</a>
             <a href="/logs" class="nav-link">Security Events</a>
             <a href="/statistics" class="nav-link">Statistics</a>
@@ -82,9 +84,12 @@
 
     <!-- Fields for SSL Certificate Path and SSL Key Path (Hidden by default) -->
     <div class="form-group" style="display: none;" id="ssl_fields">
-        <div class="form-check" style="padding-bottom: 10px;">
-            <input type="checkbox" class="form-check-input" id="auto_issue_tls" name="auto_issue_tls">
-            <label class="form-check-label" for="auto_issue_tls"><i style="margin: 8px;" class="fas fa-certificate"></i>Auto-Issue TLS via ACME</label>
+        <div class="form-group">
+            <label for="ssl_mode">Certificate Option:</label>
+            <select class="form-control" id="ssl_mode" name="ssl_mode">
+                <option value="acme">Request New Certificate (ACME)</option>
+                <option value="existing">Select Existing Certificate</option>
+            </select>
         </div>
 
         <div class="form-group" id="acme_fields" style="display: none;">
@@ -92,9 +97,24 @@
             <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com">
         </div>
 
-        <div class="form-group" id="manual_cert_fields">
-            <label for="ssl_cert_path">SSL Certificate Path (PEM):</label>
-            <input type="text" id="ssl_cert_path" class="form-control" name="ssl_cert_path" placeholder="/etc/haproxy-configurator/ssl/example.com.pem">
+        <div class="form-group" id="existing_cert_fields" style="display: none;">
+            <label for="ssl_cert_path_select">Select Certificate:</label>
+            <select class="form-control" id="ssl_cert_path_select" name="ssl_cert_path_select">
+                {% if certificates %}
+                    <option value="" selected disabled>Choose a certificate</option>
+                    {% for cert in certificates %}
+                        <option value="{{ cert.pem_path }}">{{ cert.domain }} (expires {{ cert.expires_at }})</option>
+                    {% endfor %}
+                {% else %}
+                    <option value="" selected disabled>No certificates found</option>
+                {% endif %}
+                <option value="__custom__">Custom path...</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="manual_cert_fields" style="display: none;">
+            <label for="ssl_cert_path_manual">SSL Certificate Path (PEM):</label>
+            <input type="text" id="ssl_cert_path_manual" class="form-control" name="ssl_cert_path_manual" placeholder="/etc/haproxy-configurator/ssl/example.com.pem">
         </div>
         <div style="padding-bottom: 15px;" class="form-check">
             <input type="checkbox" class="form-check-input" id="ssl_redirect_checkbox" name="ssl_redirect_checkbox">
@@ -741,21 +761,31 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
      <script>
         const sslCheckbox = document.getElementById('ssl_checkbox');
         const sslFields = document.getElementById('ssl_fields');
-        const autoIssueCheckbox = document.getElementById('auto_issue_tls');
+        const sslModeSelect = document.getElementById('ssl_mode');
         const acmeFields = document.getElementById('acme_fields');
+        const existingFields = document.getElementById('existing_cert_fields');
         const manualCertFields = document.getElementById('manual_cert_fields');
+        const certSelect = document.getElementById('ssl_cert_path_select');
 
-        function toggleAcmeFields() {
-            if (!autoIssueCheckbox) {
+        function toggleManualCert() {
+            if (!manualCertFields || !certSelect) {
                 return;
             }
-            const autoIssue = autoIssueCheckbox.checked;
+            manualCertFields.style.display = certSelect.value === '__custom__' ? 'block' : 'none';
+        }
+
+        function toggleSslMode() {
+            if (!sslModeSelect) {
+                return;
+            }
+            const mode = sslModeSelect.value;
             if (acmeFields) {
-                acmeFields.style.display = autoIssue ? 'block' : 'none';
+                acmeFields.style.display = mode === 'acme' ? 'block' : 'none';
             }
-            if (manualCertFields) {
-                manualCertFields.style.display = autoIssue ? 'none' : 'block';
+            if (existingFields) {
+                existingFields.style.display = mode === 'existing' ? 'block' : 'none';
             }
+            toggleManualCert();
         }
 
         function toggleSslFields() {
@@ -763,12 +793,15 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
             if (!sslCheckbox.checked) {
                 return;
             }
-            toggleAcmeFields();
+            toggleSslMode();
         }
 
         sslCheckbox.addEventListener('change', toggleSslFields);
-        if (autoIssueCheckbox) {
-            autoIssueCheckbox.addEventListener('change', toggleAcmeFields);
+        if (sslModeSelect) {
+            sslModeSelect.addEventListener('change', toggleSslMode);
+        }
+        if (certSelect) {
+            certSelect.addEventListener('change', toggleManualCert);
         }
         toggleSslFields();
     </script>

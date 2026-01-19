@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Statistics</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Manage Certificates</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,10 +24,10 @@
         <a href="/home" class="nav-link">Home</a>
         <a href="/" class="nav-link">Add Frontend & Backend</a>
         <a href="/manage" class="nav-link">Edit Frontends & Backends</a>
-        <a href="/certificates" class="nav-link">Manage Certificates</a>
+        <a href="/certificates" class="nav-link active">Manage Certificates</a>
         <a href="/edit" class="nav-link">Edit HAProxy Config</a>
         <a href="/logs" class="nav-link">Security Events</a>
-        <a href="/statistics" class="nav-link active">Statistics</a>
+        <a href="/statistics" class="nav-link">Statistics</a>
         <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-link" target="_blank">HAProxy Stats</a>
     </nav>
     <div class="theme-toggle">
@@ -38,50 +38,54 @@
         </label>
     </div>
 </header>
-
 <main class="main-content">
     <div class="page-header">
-        <h1>Traffic statistics</h1>
-        <p>Snapshot of 4xx/5xx responses, throughput, and connection totals.</p>
+        <h1>Manage certificates</h1>
+        <p>View ACME-issued certificates and trigger renewals.</p>
     </div>
 
     <div class="card-surface">
-        <div class="section-title">HAProxy stats</div>
-        <div class="section-subtitle">Pulled from <strong>127.0.0.1:8080/;csv</strong>.</div>
+        <div class="section-title">Installed ACME certificates</div>
+        <div class="section-subtitle">Stored in <strong>/etc/haproxy-configurator/ssl</strong>.</div>
+
+        {% if message %}
+        <div class="alert alert-info">{{ message }}</div>
+        {% endif %}
+
+        {% if certificates %}
         <div class="table-responsive">
             <table class="table table-bordered table-striped">
                 <thead>
                     <tr>
-                        <th>Frontend Name</th>
-                        <th>Server Name</th>
-                        <th>4xx Errors</th>
-                        <th>5xx Errors</th>
-                        <th>Bytes In (MB)</th>
-                        <th>Bytes Out (MB)</th>
-                        <th>Total Connections</th>
+                        <th>Domain</th>
+                        <th>Expires</th>
+                        <th>PEM Path</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for stat in stats %}
+                    {% for cert in certificates %}
                     <tr>
-                        <td>{{ stat.frontend_name }}</td>
-                        <td>{{ stat.server_name }}</td>
-                        <td>{{ stat['4xx_errors'] }}</td>
-                        <td>{{ stat['5xx_errors'] }}</td>
-                        <td>{{ stat.bytes_in_mb }}</td>
-                        <td>{{ stat.bytes_out_mb }}</td>
-                        <td>{{ stat.conn_tot }}</td>
+                        <td>{{ cert.domain }}</td>
+                        <td>{{ cert.expires_at }}</td>
+                        <td>{{ cert.pem_path }}</td>
+                        <td>
+                            <form method="POST">
+                                <input type="hidden" name="domain" value="{{ cert.domain }}">
+                                <button type="submit" class="btn btn-primary btn-sm">Renew</button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <p class="section-subtitle">No ACME certificates found yet.</p>
+        {% endif %}
     </div>
 </main>
 
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

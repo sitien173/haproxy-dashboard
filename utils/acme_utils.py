@@ -46,6 +46,51 @@ def _acme_home_flags(acme_home):
     return ['--home', acme_home, '--config-home', acme_home]
 
 
+def _get_cert_enddate(cert_path):
+    try:
+        result = subprocess.run(
+            ['openssl', 'x509', '-enddate', '-noout', '-in', cert_path],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+    line = result.stdout.strip()
+    if line.startswith('notAfter='):
+        return line.replace('notAfter=', '').strip()
+    return None
+
+
+def list_installed_certificates(config_path=None):
+    config = load_acme_config(config_path)
+    cert_dir = config['cert_dir']
+    certificates = []
+
+    if not os.path.isdir(cert_dir):
+        return certificates
+
+    skip_names = {'fullchain.pem', 'privkey.pem', 'haproxy-configurator.pem'}
+    for entry in os.listdir(cert_dir):
+        if not entry.endswith('.pem'):
+            continue
+        if entry in skip_names:
+            continue
+        pem_path = os.path.join(cert_dir, entry)
+        if not os.path.isfile(pem_path):
+            continue
+        domain = entry[:-4]
+        certificates.append({
+            'domain': domain,
+            'pem_path': pem_path,
+            'expires_at': _get_cert_enddate(pem_path) or 'Unknown',
+        })
+
+    certificates.sort(key=lambda item: item['domain'])
+    return certificates
+
+
 def issue_certificate(domain, config_path=None):
     if not domain:
         raise ValueError("Domain name is required for ACME issuance.")
@@ -71,7 +116,7 @@ def issue_certificate(domain, config_path=None):
         return combined_pem_path
 
     challenge = config['challenge']
-    issue_cmd = [acme_sh] + _acme_home_flags(config['acme_home']) + ['--issue', '-d', domain, '--debug']
+    issue_cmd = [acme_sh] + _acme_home_flags(config['acme_home']) + ['--issue', '-d', domain, '--force', '--debug']
     if challenge == 'webroot':
         if not config['webroot']:
             raise ValueError("ACME webroot challenge requires webroot in acme.ini.")
@@ -110,6 +155,62 @@ def issue_certificate(domain, config_path=None):
     ]
     try:
         subprocess.run(install_cmd, check=True, capture_output=True, text=True, env=env)
+    except subprocess.CalledProcessError as exc:
+        error_output = exc.stderr or exc.stdout or str(exc)
+        raise RuntimeError(f"acme.sh install failed: {error_output}") from exc
+
+    with open(fullchain_path, 'r') as fullchain_file, open(privkey_path, 'r') as key_file:
+        fullchain_data = fullchain_file.read()
+        key_data = key_file.read()
+
+    with open(combined_pem_path, 'w') as combined_file:
+        combined_file.write(fullchain_data)
+        combined_file.write(key_data)
+
+    try:
+        os.chmod(combined_pem_path, 0o600)
+    except PermissionError:
+        pass
+
+    return combined_pem_path
+
+
+def renew_certificate(domain, config_path=None):
+    if not domain:
+        raise ValueError("Domain name is required for ACME renewal.")
+
+    config = load_acme_config(config_path)
+    acme_sh = config['acme_sh']
+    if not os.path.exists(acme_sh):
+        raise FileNotFoundError(
+            f"acme.sh not found: {acme_sh}. Install it with /etc/haproxy-configurator/scripts/setup_acme.sh "
+            "or https://get.acme.sh."
+        )
+
+    cert_dir = config['cert_dir']
+    safe_domain = _sanitize_domain(domain)
+    domain_dir = os.path.join(cert_dir, safe_domain)
+    os.makedirs(domain_dir, exist_ok=True)
+
+    fullchain_path = os.path.join(domain_dir, 'fullchain.pem')
+    privkey_path = os.path.join(domain_dir, 'privkey.pem')
+    combined_pem_path = os.path.join(cert_dir, f"{safe_domain}.pem")
+
+    renew_cmd = [acme_sh] + _acme_home_flags(config['acme_home']) + ['--renew', '-d', domain]
+    try:
+        subprocess.run(renew_cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as exc:
+        error_output = exc.stderr or exc.stdout or str(exc)
+        raise RuntimeError(f"acme.sh renew failed: {error_output}") from exc
+
+    install_cmd = [
+        acme_sh, *_acme_home_flags(config['acme_home']), '--install-cert', '-d', domain,
+        '--fullchain-file', fullchain_path,
+        '--key-file', privkey_path,
+        '--reloadcmd', config['reload_cmd'],
+    ]
+    try:
+        subprocess.run(install_cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as exc:
         error_output = exc.stderr or exc.stdout or str(exc)
         raise RuntimeError(f"acme.sh install failed: {error_output}") from exc

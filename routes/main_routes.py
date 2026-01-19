@@ -1,12 +1,18 @@
 from flask import Blueprint, render_template, request
 from auth.auth_middleware import requires_auth  # Updated import
 from utils.haproxy_config import update_haproxy_config, is_frontend_exist, count_frontends_and_backends
+from utils.acme_utils import list_installed_certificates
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/', methods=['GET', 'POST'])
 @requires_auth
 def index():
+    try:
+        certificates = list_installed_certificates()
+    except Exception:
+        certificates = []
+
     if request.method == 'POST':
         frontend_name = request.form['frontend_name']
         frontend_ip = request.form['frontend_ip']
@@ -29,8 +35,9 @@ def index():
         acl_action = request.form['acl_action'] if 'acl_action' in request.form else ''
         acl_backend_name = request.form['backend_name_acl'] if 'backend_name_acl' in request.form else ''
         use_ssl = 'ssl_checkbox' in request.form
-        ssl_cert_path = request.form.get('ssl_cert_path', '')
-        auto_issue_tls = 'auto_issue_tls' in request.form
+        ssl_mode = request.form.get('ssl_mode', 'existing')
+        ssl_cert_path = ''
+        auto_issue_tls = ssl_mode == 'acme'
         domain_name = request.form.get('domain_name', '').strip()
         https_redirect = 'ssl_redirect_checkbox' in request.form
         is_dos = 'add_dos' in request.form if 'add_dos' in request.form else ''
@@ -88,6 +95,13 @@ def index():
             sticky_session_type = request.form['sticky_session_type']
 
         # Update the HAProxy config file
+        if use_ssl and not auto_issue_tls:
+            ssl_cert_path = request.form.get('ssl_cert_path_manual', '').strip()
+            if not ssl_cert_path:
+                ssl_cert_path = request.form.get('ssl_cert_path_select', '').strip()
+            if ssl_cert_path == '__custom__':
+                ssl_cert_path = ''
+
         message = update_haproxy_config(
             frontend_name, frontend_ip, frontend_port, lb_method, protocol, backend_name, 
             backend_servers, health_check, health_check_tcp, health_check_link, sticky_session,
@@ -97,9 +111,9 @@ def index():
             allowed_ip, forbidden_path, sql_injection_check, is_xss, is_remote_upload, 
             add_path_based, redirect_domain_name, root_redirect, redirect_to, is_webshells
         )
-        return render_template('index.html', message=message)
+        return render_template('index.html', message=message, certificates=certificates)
 
-    return render_template('index.html')
+    return render_template('index.html', certificates=certificates)
 
 @main_bp.route('/home')
 @requires_auth

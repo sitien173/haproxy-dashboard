@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request
 import subprocess
 from auth.auth_middleware import requires_auth  # Updated import
+from utils.haproxy_config import parse_haproxy_sections, replace_haproxy_section
+from utils.acme_utils import list_installed_certificates, renew_certificate
 
 edit_bp = Blueprint('edit', __name__)
 
@@ -55,3 +57,60 @@ def edit_haproxy_config():
         config_content = "# Permission denied reading HAProxy configuration file"
     
     return render_template('edit.html', config_content=config_content)
+
+
+@edit_bp.route('/manage', methods=['GET', 'POST'])
+@requires_auth
+def manage_haproxy_sections():
+    message = None
+    if request.method == 'POST':
+        section_type = request.form.get('section_type', '').strip()
+        section_name = request.form.get('section_name', '').strip()
+        section_content = request.form.get('section_content', '').strip()
+
+        if not section_type or not section_name:
+            message = "Please select a frontend or backend."
+        elif not section_content:
+            message = "Section content is required."
+        else:
+            first_line = section_content.splitlines()[0].strip()
+            if not first_line.startswith(f"{section_type} "):
+                message = f"Section must start with '{section_type} <name>'."
+            else:
+                ok, detail = replace_haproxy_section(section_type, section_name, section_content)
+                message = detail
+
+    try:
+        sections = parse_haproxy_sections()
+    except FileNotFoundError:
+        sections = []
+        message = message or "HAProxy configuration file not found."
+    except PermissionError:
+        sections = []
+        message = message or "Permission denied reading HAProxy configuration file."
+
+    return render_template('manage.html', sections=sections, message=message)
+
+
+@edit_bp.route('/certificates', methods=['GET', 'POST'])
+@requires_auth
+def manage_certificates():
+    message = None
+    if request.method == 'POST':
+        domain = request.form.get('domain', '').strip()
+        if not domain:
+            message = "Please select a certificate."
+        else:
+            try:
+                renew_certificate(domain)
+                message = f"Certificate renewed for {domain}."
+            except Exception as exc:
+                message = f"Failed to renew {domain}: {exc}"
+
+    try:
+        certificates = list_installed_certificates()
+    except Exception as exc:
+        certificates = []
+        message = message or f"Failed to load certificates: {exc}"
+
+    return render_template('certificates.html', certificates=certificates, message=message)

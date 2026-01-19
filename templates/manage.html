@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit Frontends & Backends</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="app-shell">
+<header class="topbar">
+    <a href="/home" class="brand-link">
+        <span class="brand-icon"><i class="fas fa-globe"></i></span>
+        <span class="brand-text">
+            <span class="brand-title">HAProxy Configurator</span>
+            <span class="brand-subtitle">Secure routing, clear control</span>
+        </span>
+    </a>
+    <nav class="nav-links">
+        <a href="/home" class="nav-link">Home</a>
+        <a href="/" class="nav-link">Add Frontend & Backend</a>
+        <a href="/manage" class="nav-link active">Edit Frontends & Backends</a>
+        <a href="/certificates" class="nav-link">Manage Certificates</a>
+        <a href="/edit" class="nav-link">Edit HAProxy Config</a>
+        <a href="/logs" class="nav-link">Security Events</a>
+        <a href="/statistics" class="nav-link">Statistics</a>
+        <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-link" target="_blank">HAProxy Stats</a>
+    </nav>
+    <div class="theme-toggle">
+        <span>Dark mode</span>
+        <label class="switch">
+            <input type="checkbox" data-theme-toggle>
+            <span class="slider"></span>
+        </label>
+    </div>
+</header>
+<main class="main-content">
+    <div class="page-header">
+        <h1>Edit frontends & backends</h1>
+        <p>Select an existing frontend or backend and update its block safely.</p>
+    </div>
+
+    <div class="card-surface">
+        <div class="section-title">Edit section</div>
+        <div class="section-subtitle">Updates only the selected block, not the whole config.</div>
+
+        {% if message %}
+        <div class="alert alert-info">{{ message }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="section_type">Section Type</label>
+                    <select class="form-control" id="section_type" name="section_type">
+                        <option value="frontend">Frontend</option>
+                        <option value="backend">Backend</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="section_name">Section Name</label>
+                    <select class="form-control" id="section_name" name="section_name"></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="section_content">Section Content</label>
+                <textarea class="form-control" id="section_content" name="section_content" rows="18" placeholder="Select a section to edit..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+    </div>
+</main>
+
+<script>
+    const sections = {{ sections | tojson }};
+    const typeSelect = document.getElementById('section_type');
+    const nameSelect = document.getElementById('section_name');
+    const contentArea = document.getElementById('section_content');
+
+    function populateNames() {
+        const type = typeSelect.value;
+        const filtered = sections.filter(section => section.type === type);
+        nameSelect.innerHTML = '';
+        filtered.forEach((section, index) => {
+            const option = document.createElement('option');
+            option.value = section.name;
+            option.textContent = section.name;
+            if (index === 0) {
+                option.selected = true;
+            }
+            nameSelect.appendChild(option);
+        });
+        updateContent();
+    }
+
+    function updateContent() {
+        const type = typeSelect.value;
+        const name = nameSelect.value;
+        const section = sections.find(item => item.type === type && item.name === name);
+        contentArea.value = section ? section.content : '';
+    }
+
+    typeSelect.addEventListener('change', populateNames);
+    nameSelect.addEventListener('change', updateContent);
+
+    populateNames();
+</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
