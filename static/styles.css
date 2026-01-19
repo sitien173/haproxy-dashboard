@@ -472,7 +472,7 @@ select.form-control {
 }
 
 .form-check .form-check-input {
-  margin-top: 0.6rem !important;
+  margin-top: 0.2rem !important;
 }
 
 @keyframes fadeUp {
