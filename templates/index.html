@@ -531,59 +531,38 @@ document.querySelector('select[name="protocol"]').addEventListener('change', tog
 
 <script>
     function toggleHealthCheck2() {
-    const protocolSelect = document.getElementById('protocol');
-    const healthCheckContainer = document.getElementById('health_check_container');
-    const healthCheckContainer2 = document.getElementById('health_check_container2');
-    const healthCheckCheckbox2 = document.getElementById('health_check2');
-
-
-
-    if (protocolSelect.value !== 'http') {
-
-        healthCheckContainer.style.display = 'none';
-        healthCheckContainer2.style.display = 'block';
-
+        const protocolSelect = document.getElementById('protocol');
+        const healthCheckContainer = document.getElementById('health_check_container_http');
+        const healthCheckContainer2 = document.getElementById('health_check_container_tcp');
+        if (!protocolSelect) {
+            return;
         }
-
-        else {
-        healthCheckContainer.style.display = 'block';
+        const protocol = protocolSelect.value;
+        if (healthCheckContainer) {
+            healthCheckContainer.style.display = protocol === 'http' ? 'block' : 'none';
         }
+        if (healthCheckContainer2) {
+            healthCheckContainer2.style.display = protocol === 'tcp' ? 'block' : 'none';
+        }
+    }
 
-}
-
-document.getElementById('protocol').addEventListener('change', toggleHealthCheck2);
+    document.getElementById('protocol').addEventListener('change', toggleHealthCheck2);
 </script>
 
 
 <script>
     function toggleHealthCheck() {
-    const protocolSelect = document.getElementById('protocol');
-    const healthCheckContainer = document.getElementById('health_check_container');
-    const healthCheckField = document.getElementById('health_check_field');
-    const healthCheckCheckbox = document.getElementById('health_check');
-    const healthCheckContainer2 = document.getElementById('health_check_container2');
-    const healthCheckCheckbox2 = document.getElementById('health_check2');
-
-
-
-    if (protocolSelect.value === 'http') {
-        healthCheckContainer.style.display = 'block';
-        if (healthCheckCheckbox.checked) {
-            healthCheckField.style.display = 'block';
-        } else {
-            healthCheckField.style.display = 'none';
-             healthCheckContainer2.style.display = 'none';
-        healthCheckCheckbox2.style.display = 'none';
+        const protocolSelect = document.getElementById('protocol');
+        const healthCheckField = document.getElementById('health_check_field');
+        const healthCheckCheckbox = document.getElementById('health_check');
+        if (!protocolSelect || !healthCheckField || !healthCheckCheckbox) {
+            return;
         }
-    } else {
-        healthCheckContainer.style.display = 'none';
-        healthCheckField.style.display = 'none';
-
-
+        const protocol = protocolSelect.value;
+        healthCheckField.style.display = (protocol === 'http' && healthCheckCheckbox.checked) ? 'block' : 'none';
     }
-}
 
-document.getElementById('protocol').addEventListener('change', toggleHealthCheck);
+    document.getElementById('protocol').addEventListener('change', toggleHealthCheck);
 </script>
 
 
