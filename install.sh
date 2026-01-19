@@ -26,6 +26,7 @@ cat << EOF | sudo tee /etc/systemd/system/haproxy-configurator.service
 Description=Haproxy-Configurator Service By Alon Zur
 
 [Service]
+Environment="DATABASE_URL=mysql+pymysql://haproxy:27ZrAxj3FyGJ2xCS@127.0.0.1:3306/haproxy"
 ExecStart=/etc/haproxy-configurator/venv/bin/python3 /etc/haproxy-configurator/app.py
 Restart=always
 RestartSec=3
