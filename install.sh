@@ -17,6 +17,7 @@ sudo cp -r utils/ /etc/haproxy-configurator/
 sudo cp -r auth/ /etc/haproxy-configurator/
 sudo cp -r scripts/ /etc/haproxy-configurator/
 sudo cp -r static/ /etc/haproxy-configurator/
+sudo cp -r db/ /etc/haproxy-configurator/
 sudo cp log_parser.py /etc/haproxy-configurator/
 sudo chmod +x /etc/haproxy-configurator/scripts/setup_acme.sh
 # Create the service file for 'haproxy-configurator'

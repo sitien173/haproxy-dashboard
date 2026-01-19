@@ -42,6 +42,7 @@ HAProxy Configurator offers a rich GUI to create, validate, and manage HAProxy c
 2. **HAProxy** installed on your system
 3. **Python 3**
 4. Port `5000` must be available (for the web interface)
+5. **MySQL** (or compatible) database
 
 
 ## Install:
@@ -63,6 +64,9 @@ HAProxy Configurator offers a rich GUI to create, validate, and manage HAProxy c
    
 4. Install flask and the app dependencies by simply run the Makefile in the cli:
    ```pip install -r requirements.txt```
+
+5. Set the database connection string:
+   ```export DATABASE_URL="mysql+pymysql://haproxy:password@127.0.0.1:3306/haproxy_configurator"```
 
 5. run the installation script:
    ```chmod +x install.sh```
@@ -148,7 +152,7 @@ Fill in the required parameters and options for your HAProxy configuration.
 
 
 
-### You may as well edit the config file itself via "Edit HAProxy Config":
+### Manage the base config via "Config Settings":
 
 ![image](https://github.com/alonz22/HAProxy-Configurator/assets/72250573/c61ed725-37a4-4ad5-908f-6164311c7fd4)
 
@@ -156,7 +160,7 @@ Fill in the required parameters and options for your HAProxy configuration.
 
 Click the "Save & Check" button to validate the configuration without reloading HAProxy.
 
-Click the "Save & Reload" button to save the configuration and trigger HAProxy's reload.
+Click the "Save & Restart" button to save the configuration and trigger HAProxy's reload.
 
 Review the generated configuration output and verify its accuracy.
 
@@ -171,8 +175,8 @@ Review the generated configuration output and verify its accuracy.
 Frontend and Backend Configuration
 Easily add and manage frontend and backend configurations through our intuitive GUI. Define your load balancing, SSL termination, and ACL rules with just a few clicks.
 
-Direct Edit of haproxy.cfg
-Edit your HAProxy configuration file directly from the GUI. Make quick modifications, add custom settings, and see changes in real-time.
+Database-backed configuration
+Persist frontends, backends, and base settings in MySQL, then render `haproxy.cfg` from the database.
 
 Configuration Validation
 Ensure the accuracy of your HAProxy configuration by validating it for errors. Receive clear feedback and suggestions for improvements before applying changes.

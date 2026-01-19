@@ -2,6 +2,10 @@ import configparser
 import os
 import re
 import subprocess
+from datetime import datetime
+
+from db import db
+from db.models import Certificate
 
 DEFAULT_ACME_INI_PATH = '/etc/haproxy-configurator/acme.ini'
 
@@ -63,32 +67,33 @@ def _get_cert_enddate(cert_path):
     return None
 
 
+def _get_cert_issuer(cert_path):
+    try:
+        result = subprocess.run(
+            ['openssl', 'x509', '-issuer', '-noout', '-in', cert_path],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+    line = result.stdout.strip()
+    if line.startswith('issuer='):
+        return line.replace('issuer=', '').strip()
+    return None
+
+
 def list_installed_certificates(config_path=None):
-    config = load_acme_config(config_path)
-    cert_dir = config['cert_dir']
-    certificates = []
-
-    if not os.path.isdir(cert_dir):
-        return certificates
-
-    skip_names = {'fullchain.pem', 'privkey.pem', 'haproxy-configurator.pem'}
-    for entry in os.listdir(cert_dir):
-        if not entry.endswith('.pem'):
-            continue
-        if entry in skip_names:
-            continue
-        pem_path = os.path.join(cert_dir, entry)
-        if not os.path.isfile(pem_path):
-            continue
-        domain = entry[:-4]
-        certificates.append({
-            'domain': domain,
-            'pem_path': pem_path,
-            'expires_at': _get_cert_enddate(pem_path) or 'Unknown',
-        })
-
-    certificates.sort(key=lambda item: item['domain'])
-    return certificates
+    records = Certificate.query.order_by(Certificate.domain.asc()).all()
+    return [
+        {
+            'domain': record.domain,
+            'pem_path': record.pem_path,
+            'expires_at': record.expires_at or 'Unknown',
+        }
+        for record in records
+    ]
 
 
 def issue_certificate(domain, config_path=None):
@@ -196,9 +201,17 @@ def renew_certificate(domain, config_path=None):
     privkey_path = os.path.join(domain_dir, 'privkey.pem')
     combined_pem_path = os.path.join(cert_dir, f"{safe_domain}.pem")
 
+    env = os.environ.copy()
+    acme_home = config['acme_home']
+    if acme_home:
+        parent_dir = os.path.dirname(acme_home)
+        if parent_dir:
+            env['HOME'] = parent_dir
+        env['LE_WORKING_DIR'] = acme_home
+
     renew_cmd = [acme_sh] + _acme_home_flags(config['acme_home']) + ['--renew', '-d', domain]
     try:
-        subprocess.run(renew_cmd, check=True, capture_output=True, text=True)
+        subprocess.run(renew_cmd, check=True, capture_output=True, text=True, env=env)
     except subprocess.CalledProcessError as exc:
         error_output = exc.stderr or exc.stdout or str(exc)
         raise RuntimeError(f"acme.sh renew failed: {error_output}") from exc
@@ -210,7 +223,7 @@ def renew_certificate(domain, config_path=None):
         '--reloadcmd', config['reload_cmd'],
     ]
     try:
-        subprocess.run(install_cmd, check=True, capture_output=True, text=True)
+        subprocess.run(install_cmd, check=True, capture_output=True, text=True, env=env)
     except subprocess.CalledProcessError as exc:
         error_output = exc.stderr or exc.stdout or str(exc)
         raise RuntimeError(f"acme.sh install failed: {error_output}") from exc
@@ -227,5 +240,13 @@ def renew_certificate(domain, config_path=None):
         os.chmod(combined_pem_path, 0o600)
     except PermissionError:
         pass
+
+    cert = Certificate.query.filter_by(domain=domain).first()
+    if cert:
+        cert.pem_path = combined_pem_path
+        cert.issuer = _get_cert_issuer(combined_pem_path)
+        cert.expires_at = _get_cert_enddate(combined_pem_path)
+        cert.last_renewed_at = datetime.utcnow()
+        db.session.commit()
 
     return combined_pem_path

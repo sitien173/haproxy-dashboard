@@ -111,6 +111,10 @@ def index():
             allowed_ip, forbidden_path, sql_injection_check, is_xss, is_remote_upload, 
             add_path_based, redirect_domain_name, root_redirect, redirect_to, is_webshells
         )
+        try:
+            certificates = list_installed_certificates()
+        except Exception:
+            certificates = []
         return render_template('index.html', message=message, certificates=certificates)
 
     return render_template('index.html', certificates=certificates)

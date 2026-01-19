@@ -25,7 +25,7 @@
         <a href="/" class="nav-link">Add Frontend & Backend</a>
         <a href="/manage" class="nav-link">Edit Frontends & Backends</a>
         <a href="/certificates" class="nav-link active">Manage Certificates</a>
-        <a href="/edit" class="nav-link">Edit HAProxy Config</a>
+        <a href="/config" class="nav-link">Config Settings</a>
         <a href="/logs" class="nav-link">Security Events</a>
         <a href="/statistics" class="nav-link">Statistics</a>
         <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-link" target="_blank">HAProxy Stats</a>
@@ -45,12 +45,27 @@
     </div>
 
     <div class="card-surface">
-        <div class="section-title">Installed ACME certificates</div>
-        <div class="section-subtitle">Stored in <strong>/etc/haproxy-configurator/ssl</strong>.</div>
+        <div class="section-title">Stored certificates</div>
+        <div class="section-subtitle">Records are stored in MySQL; PEMs typically live in <strong>/etc/haproxy-configurator/ssl</strong>.</div>
 
         {% if message %}
         <div class="alert alert-info">{{ message }}</div>
         {% endif %}
+
+        <form method="POST" style="margin-bottom: 16px;">
+            <input type="hidden" name="action" value="add">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="domain">Domain</label>
+                    <input type="text" class="form-control" name="domain" placeholder="vaultwarden.hcmc.online">
+                </div>
+                <div class="form-group">
+                    <label for="pem_path">PEM Path</label>
+                    <input type="text" class="form-control" name="pem_path" placeholder="/etc/haproxy-configurator/ssl/vaultwarden.hcmc.online.pem">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-outline-secondary">Add Existing Certificate</button>
+        </form>
 
         {% if certificates %}
         <div class="table-responsive">
@@ -71,6 +86,7 @@
                         <td>{{ cert.pem_path }}</td>
                         <td>
                             <form method="POST">
+                                <input type="hidden" name="action" value="renew">
                                 <input type="hidden" name="domain" value="{{ cert.domain }}">
                                 <button type="submit" class="btn btn-primary btn-sm">Renew</button>
                             </form>

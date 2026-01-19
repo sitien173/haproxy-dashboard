@@ -1,12 +1,32 @@
+import os
+
 from flask import Flask, render_template
 from routes.main_routes import main_bp
 from routes.edit_routes import edit_bp
 from utils.stats_utils import fetch_haproxy_stats, parse_haproxy_stats
 from utils.ssl_utils import load_ssl_config, build_ssl_context
+from db import init_db, db
+from db.models import ConfigBase
 from auth.auth_middleware import setup_auth
 from log_parser import parse_log_file
+from utils.haproxy_config import DEFAULT_BASE_CONFIG, write_haproxy_config
 
 app = Flask(__name__)
+
+# Database configuration
+database_url = os.getenv('DATABASE_URL') or os.getenv('MYSQL_URL')
+if not database_url:
+    raise RuntimeError("DATABASE_URL or MYSQL_URL must be set for MySQL.")
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+init_db(app)
+
+with app.app_context():
+    db.create_all()
+    if not ConfigBase.query.first():
+        db.session.add(ConfigBase(content=DEFAULT_BASE_CONFIG))
+        db.session.commit()
+    write_haproxy_config()
 
 # Register blueprints
 app.register_blueprint(main_bp)
