@@ -10,6 +10,7 @@ sudo cp app.py /etc/haproxy-configurator/
 sudo cp Makefile /etc/haproxy-configurator/
 sudo cp requirements.txt /etc/haproxy-configurator/
 sudo cp ssl.ini /etc/haproxy-configurator/
+sudo cp acme.ini /etc/haproxy-configurator/
 sudo cp -r ssl/ /etc/haproxy-configurator/
 sudo cp -r routes/ /etc/haproxy-configurator/
 sudo cp -r utils/ /etc/haproxy-configurator/

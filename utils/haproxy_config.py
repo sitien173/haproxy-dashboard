@@ -1,3 +1,6 @@
+from utils.acme_utils import issue_certificate
+
+
 def is_frontend_exist(frontend_name, frontend_ip, frontend_port):
     with open('/etc/haproxy/haproxy.cfg', 'r') as haproxy_cfg:
         frontend_found = False
@@ -25,10 +28,22 @@ def is_backend_exist(backend_name):
                     return True
     return False
 
-def update_haproxy_config(frontend_name, frontend_ip, frontend_port, lb_method, protocol, backend_name, backend_servers, health_check, health_check_tcp, health_check_link, sticky_session, add_header, header_name, header_value, sticky_session_type, is_acl, acl_name, acl_action, acl_backend_name, use_ssl, ssl_cert_path, https_redirect, is_dos, ban_duration, limit_requests, forward_for, is_forbidden_path, forbidden_name, allowed_ip, forbidden_path, sql_injection_check, is_xss, is_remote_upload, add_path_based, redirect_domain_name, root_redirect, redirect_to, is_webshells):
+def update_haproxy_config(frontend_name, frontend_ip, frontend_port, lb_method, protocol, backend_name, backend_servers, health_check, health_check_tcp, health_check_link, sticky_session, add_header, header_name, header_value, sticky_session_type, is_acl, acl_name, acl_action, acl_backend_name, use_ssl, ssl_cert_path, auto_issue_tls, domain_name, https_redirect, is_dos, ban_duration, limit_requests, forward_for, is_forbidden_path, forbidden_name, allowed_ip, forbidden_path, sql_injection_check, is_xss, is_remote_upload, add_path_based, redirect_domain_name, root_redirect, redirect_to, is_webshells):
 
     if is_backend_exist(backend_name):
         return f"Backend {backend_name} already exists. Cannot add duplicate."
+
+    if auto_issue_tls:
+        use_ssl = True
+
+    if use_ssl and auto_issue_tls:
+        try:
+            ssl_cert_path = issue_certificate(domain_name)
+        except Exception as exc:
+            return f"Failed to issue certificate for {domain_name}: {exc}"
+
+    if use_ssl and not ssl_cert_path:
+        return "SSL certificate path is required when SSL is enabled."
 
     with open('/etc/haproxy/haproxy.cfg', 'a') as haproxy_cfg:
         haproxy_cfg.write(f"\nfrontend {frontend_name}\n")

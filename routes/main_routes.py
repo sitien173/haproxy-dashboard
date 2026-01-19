@@ -29,7 +29,9 @@ def index():
         acl_action = request.form['acl_action'] if 'acl_action' in request.form else ''
         acl_backend_name = request.form['backend_name_acl'] if 'backend_name_acl' in request.form else ''
         use_ssl = 'ssl_checkbox' in request.form
-        ssl_cert_path = request.form['ssl_cert_path']
+        ssl_cert_path = request.form.get('ssl_cert_path', '')
+        auto_issue_tls = 'auto_issue_tls' in request.form
+        domain_name = request.form.get('domain_name', '').strip()
         https_redirect = 'ssl_redirect_checkbox' in request.form
         is_dos = 'add_dos' in request.form if 'add_dos' in request.form else ''
         ban_duration = request.form["ban_duration"]
@@ -90,7 +92,7 @@ def index():
             frontend_name, frontend_ip, frontend_port, lb_method, protocol, backend_name, 
             backend_servers, health_check, health_check_tcp, health_check_link, sticky_session,
             add_header, header_name, header_value, sticky_session_type, is_acl, acl_name,
-            acl_action, acl_backend_name, use_ssl, ssl_cert_path, https_redirect, is_dos, 
+            acl_action, acl_backend_name, use_ssl, ssl_cert_path, auto_issue_tls, domain_name, https_redirect, is_dos, 
             ban_duration, limit_requests, forward_for, is_forbidden_path, forbidden_name, 
             allowed_ip, forbidden_path, sql_injection_check, is_xss, is_remote_upload, 
             add_path_based, redirect_domain_name, root_redirect, redirect_to, is_webshells

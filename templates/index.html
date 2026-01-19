@@ -217,8 +217,20 @@
 
     <!-- Fields for SSL Certificate Path and SSL Key Path (Hidden by default) -->
     <div class="form-group" style="display: none;" id="ssl_fields">
-        <label for="ssl_cert_path">SSL Certificate Path:</label>
-        <input type="text" id="ssl_cert_path" class="form-control" name="ssl_cert_path">
+        <div class="form-check" style="padding-bottom: 10px;">
+            <input type="checkbox" class="form-check-input" id="auto_issue_tls" name="auto_issue_tls">
+            <label class="form-check-label" for="auto_issue_tls"><i style="margin: 8px;" class="fas fa-certificate"></i>Auto-Issue TLS via ACME</label>
+        </div>
+
+        <div class="form-group" id="acme_fields" style="display: none;">
+            <label for="domain_name">Domain Name (ACME):</label>
+            <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com">
+        </div>
+
+        <div class="form-group" id="manual_cert_fields">
+            <label for="ssl_cert_path">SSL Certificate Path (PEM):</label>
+            <input type="text" id="ssl_cert_path" class="form-control" name="ssl_cert_path" placeholder="/etc/haproxy-configurator/ssl/example.com.pem">
+        </div>
         <div style="padding-bottom: 15px;" class="form-check">
             <input type="checkbox" class="form-check-input" id="ssl_redirect_checkbox" name="ssl_redirect_checkbox">
             <label class="form-check-label" for="ssl_redirect_checkbox"><i style="margin: 8px;" class="fas fa-arrow-circle-right"></i>Add Redirect to HTTPS</label>
@@ -858,10 +870,38 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
     </script>
 
      <script>
-        document.getElementById('ssl_checkbox').addEventListener('change', function () {
-            const sslFields = document.getElementById('ssl_fields');
-            sslFields.style.display = this.checked ? 'block' : 'none';
-        });
+        const sslCheckbox = document.getElementById('ssl_checkbox');
+        const sslFields = document.getElementById('ssl_fields');
+        const autoIssueCheckbox = document.getElementById('auto_issue_tls');
+        const acmeFields = document.getElementById('acme_fields');
+        const manualCertFields = document.getElementById('manual_cert_fields');
+
+        function toggleAcmeFields() {
+            if (!autoIssueCheckbox) {
+                return;
+            }
+            const autoIssue = autoIssueCheckbox.checked;
+            if (acmeFields) {
+                acmeFields.style.display = autoIssue ? 'block' : 'none';
+            }
+            if (manualCertFields) {
+                manualCertFields.style.display = autoIssue ? 'none' : 'block';
+            }
+        }
+
+        function toggleSslFields() {
+            sslFields.style.display = sslCheckbox.checked ? 'block' : 'none';
+            if (!sslCheckbox.checked) {
+                return;
+            }
+            toggleAcmeFields();
+        }
+
+        sslCheckbox.addEventListener('change', toggleSslFields);
+        if (autoIssueCheckbox) {
+            autoIssueCheckbox.addEventListener('change', toggleAcmeFields);
+        }
+        toggleSslFields();
     </script>
 </body>
 </html>

@@ -81,30 +81,48 @@ if the script failes to run with "bad interpreter" error, run the following:
 
 ## SSL Certificate
 
-The application comes with a self signed certificate related to tthe domain "haproxy-configurator.local". The path to the PEM file can be changed inside ssl.ini configuration file.
+The application (port 5000) uses the certificate configured in `ssl.ini`. It ships with a self-signed PEM for the domain "haproxy-configurator.local". If the configured files are missing, the app falls back to `/etc/haproxy-configurator/ssl/haproxy-configurator.pem`.
 
-### TLS Automation (acme.sh)
+### TLS Automation for Frontends (acme.sh)
 
-This project can automate TLS with acme.sh. The helper script issues a certificate and wires the service to reload on renewal:
+When adding a frontend, enable **Use SSL Certificate** and **Auto-Issue TLS via ACME**, then provide the domain. The app issues a cert via `acme.sh` and writes a combined PEM at:
+
+```
+/etc/haproxy-configurator/ssl/<domain>.pem
+```
+
+Configure acme.sh in `acme.ini`:
+
+```
+[acme]
+challenge = webroot
+webroot = /var/www/acme-challenge
+dns_provider =
+cert_dir = /etc/haproxy-configurator/ssl
+reload_cmd = systemctl reload haproxy
+```
+
+Make sure `acme.sh` is installed (the helper script above installs it automatically).
+
+Challenge options:
+- `webroot` (recommended): serve `/.well-known/acme-challenge/` from `webroot` via HAProxy.
+- `standalone`: acme.sh binds to port 80 temporarily.
+- `dns`: requires a provider in `dns_provider` (e.g., `dns_cf`).
+
+### App TLS (optional, acme.sh)
+
+If you want the web UI itself to use a trusted cert, use the helper script:
 
 ```bash
 sudo /etc/haproxy-configurator/scripts/setup_acme.sh -d your-domain.example -e admin@example.com
 ```
 
-Optional: use webroot challenges if port 80 is already taken:
-
-```bash
-sudo /etc/haproxy-configurator/scripts/setup_acme.sh -d your-domain.example -e admin@example.com -w /var/www/html
-```
-
-After the script runs, `ssl.ini` is updated to point at:
+After it runs, `ssl.ini` points to:
 
 ```
 /etc/haproxy-configurator/ssl/fullchain.pem
 /etc/haproxy-configurator/ssl/privkey.pem
 ```
-
-If these files are missing, the app falls back to the bundled self-signed PEM at `/etc/haproxy-configurator/ssl/haproxy-configurator.pem`.
 
 ## Usage
 Launch the HAProxy Configurator by navigating to https://your-haproxy-server-ip:5000.
