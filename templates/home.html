@@ -8,75 +8,85 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="app-shell">
-<header class="topbar">
-    <a href="/home" class="brand-link">
-        <span class="brand-icon"><i class="fas fa-globe"></i></span>
-        <span class="brand-text">
-            <span class="brand-title">HAProxy Configurator</span>
-            <span class="brand-subtitle">Secure routing, clear control</span>
-        </span>
-    </a>
-    <nav class="nav-links">
-        <a href="/home" class="nav-link active">Home</a>
-        <a href="/" class="nav-link">Add Frontend & Backend</a>
-        <a href="/manage" class="nav-link">Edit Frontends & Backends</a>
-        <a href="/certificates" class="nav-link">Manage Certificates</a>
-        <a href="/config" class="nav-link">Config Settings</a>
-        <a href="/logs" class="nav-link">Security Events</a>
-        <a href="/statistics" class="nav-link">Statistics</a>
-        <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-link" target="_blank">HAProxy Stats</a>
-    </nav>
-    <div class="theme-toggle">
-        <span>Dark mode</span>
-        <label class="switch">
-            <input type="checkbox" data-theme-toggle>
-            <span class="slider"></span>
-        </label>
-    </div>
-</header>
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="/home" class="brand-link">
+            <span class="brand-icon"><i class="fas fa-globe"></i></span>
+            <span class="brand-text">
+                <span class="brand-title">HAProxy Configurator</span>
+                <span class="brand-subtitle">Routing control center</span>
+            </span>
+        </a>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Overview</div>
+            <a href="/home" class="nav-item active"><i class="fas fa-chart-line"></i>Dashboard</a>
+            <div class="nav-section">Configuration</div>
+            <a href="/" class="nav-item"><i class="fas fa-plus-circle"></i>Frontends & Backends</a>
+            <a href="/manage" class="nav-item"><i class="fas fa-sliders-h"></i>Edit Blocks</a>
+            <a href="/config" class="nav-item"><i class="fas fa-cogs"></i>Base Config</a>
+            <div class="nav-section">TLS & Security</div>
+            <a href="/certificates" class="nav-item"><i class="fas fa-lock"></i>Certificates</a>
+            <a href="/logs" class="nav-item"><i class="fas fa-shield-alt"></i>Security Events</a>
+            <div class="nav-section">Analytics</div>
+            <a href="/statistics" class="nav-item"><i class="fas fa-wave-square"></i>Statistics</a>
+            <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-item" target="_blank"><i class="fas fa-external-link-alt"></i>HAProxy Stats</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="theme-toggle">
+                <span>Dark mode</span>
+                <label class="switch">
+                    <input type="checkbox" data-theme-toggle>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+    </aside>
 
-    <main class="main-content">
-        <div class="page-header">
+    <div class="content-area">
+        <header class="page-header">
             <h1>Overview</h1>
             <p>Fast snapshot of frontends, backends, and security controls.</p>
-        </div>
+        </header>
 
-        <div class="card-surface">
-            <div class="section-title">Infrastructure summary</div>
-            <div class="section-subtitle">Track active configuration elements at a glance.</div>
+        <main>
+            <div class="card-surface">
+                <div class="section-title">Infrastructure summary</div>
+                <div class="section-subtitle">Track active configuration elements at a glance.</div>
 
-            <div class="stat-grid">
-                <div class="stat-card">
-                    <span><i class="fas fa-globe" style="margin-right: 6px;"></i>Frontends</span>
-                    <strong>{{ frontend_count }}</strong>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <span><i class="fas fa-globe" style="margin-right: 6px;"></i>Frontends</span>
+                        <strong>{{ frontend_count }}</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span><i class="fas fa-sitemap" style="margin-right: 6px;"></i>Backends</span>
+                        <strong>{{ backend_count }}</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span><i class="fas fa-user-lock" style="margin-right: 6px;"></i>ACLs</span>
+                        <strong>{{ acl_count }}</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span><i class="fas fa-code" style="margin-right: 6px;"></i>Layer 7 (HTTP)</span>
+                        <strong>{{ layer7_count }}</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span><i class="fas fa-network-wired" style="margin-right: 6px;"></i>Layer 4 (TCP)</span>
+                        <strong>{{ layer4_count }}</strong>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <span><i class="fas fa-sitemap" style="margin-right: 6px;"></i>Backends</span>
-                    <strong>{{ backend_count }}</strong>
-                </div>
-                <div class="stat-card">
-                    <span><i class="fas fa-user-lock" style="margin-right: 6px;"></i>ACLs</span>
-                    <strong>{{ acl_count }}</strong>
-                </div>
-                <div class="stat-card">
-                    <span><i class="fas fa-code" style="margin-right: 6px;"></i>Layer 7 (HTTP)</span>
-                    <strong>{{ layer7_count }}</strong>
-                </div>
-                <div class="stat-card">
-                    <span><i class="fas fa-network-wired" style="margin-right: 6px;"></i>Layer 4 (TCP)</span>
-                    <strong>{{ layer4_count }}</strong>
+
+                <div style="margin-top: 20px;">
+                    <a href="/" class="btn btn-primary"><i style="margin-right: 8px;" class="fas fa-plus"></i>Add New Frontend/Backend</a>
                 </div>
             </div>
-
-            <div style="margin-top: 20px;">
-                <a href="/" class="btn btn-primary"><i style="margin-right: 8px;" class="fas fa-plus"></i>Add New Frontend/Backend</a>
-            </div>
-        </div>
-    </main>
+        </main>
+    </div>
+</div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>

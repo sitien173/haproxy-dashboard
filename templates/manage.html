@@ -8,74 +8,85 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="app-shell">
-<header class="topbar">
-    <a href="/home" class="brand-link">
-        <span class="brand-icon"><i class="fas fa-globe"></i></span>
-        <span class="brand-text">
-            <span class="brand-title">HAProxy Configurator</span>
-            <span class="brand-subtitle">Secure routing, clear control</span>
-        </span>
-    </a>
-    <nav class="nav-links">
-        <a href="/home" class="nav-link">Home</a>
-        <a href="/" class="nav-link">Add Frontend & Backend</a>
-        <a href="/manage" class="nav-link active">Edit Frontends & Backends</a>
-        <a href="/certificates" class="nav-link">Manage Certificates</a>
-        <a href="/config" class="nav-link">Config Settings</a>
-        <a href="/logs" class="nav-link">Security Events</a>
-        <a href="/statistics" class="nav-link">Statistics</a>
-        <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-link" target="_blank">HAProxy Stats</a>
-    </nav>
-    <div class="theme-toggle">
-        <span>Dark mode</span>
-        <label class="switch">
-            <input type="checkbox" data-theme-toggle>
-            <span class="slider"></span>
-        </label>
-    </div>
-</header>
-<main class="main-content">
-    <div class="page-header">
-        <h1>Edit frontends & backends</h1>
-        <p>Select an existing frontend or backend and update its block safely.</p>
-    </div>
-
-    <div class="card-surface">
-        <div class="section-title">Edit section</div>
-        <div class="section-subtitle">Updates only the selected block, not the whole config.</div>
-
-        {% if message %}
-        <div class="alert alert-info">{{ message }}</div>
-        {% endif %}
-
-        <form method="POST">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="section_type">Section Type</label>
-                    <select class="form-control" id="section_type" name="section_type">
-                        <option value="frontend">Frontend</option>
-                        <option value="backend">Backend</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="section_name">Section Name</label>
-                    <select class="form-control" id="section_name" name="section_name"></select>
-                </div>
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="/home" class="brand-link">
+            <span class="brand-icon"><i class="fas fa-globe"></i></span>
+            <span class="brand-text">
+                <span class="brand-title">HAProxy Configurator</span>
+                <span class="brand-subtitle">Routing control center</span>
+            </span>
+        </a>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Overview</div>
+            <a href="/home" class="nav-item"><i class="fas fa-chart-line"></i>Dashboard</a>
+            <div class="nav-section">Configuration</div>
+            <a href="/" class="nav-item"><i class="fas fa-plus-circle"></i>Frontends & Backends</a>
+            <a href="/manage" class="nav-item active"><i class="fas fa-sliders-h"></i>Edit Blocks</a>
+            <a href="/config" class="nav-item"><i class="fas fa-cogs"></i>Base Config</a>
+            <div class="nav-section">TLS & Security</div>
+            <a href="/certificates" class="nav-item"><i class="fas fa-lock"></i>Certificates</a>
+            <a href="/logs" class="nav-item"><i class="fas fa-shield-alt"></i>Security Events</a>
+            <div class="nav-section">Analytics</div>
+            <a href="/statistics" class="nav-item"><i class="fas fa-wave-square"></i>Statistics</a>
+            <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-item" target="_blank"><i class="fas fa-external-link-alt"></i>HAProxy Stats</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="theme-toggle">
+                <span>Dark mode</span>
+                <label class="switch">
+                    <input type="checkbox" data-theme-toggle>
+                    <span class="slider"></span>
+                </label>
             </div>
+        </div>
+    </aside>
 
-            <div class="form-group">
-                <label for="section_content">Section Content</label>
-                <textarea class="form-control" id="section_content" name="section_content" rows="18" placeholder="Select a section to edit..."></textarea>
+    <div class="content-area">
+        <header class="page-header">
+            <h1>Edit frontends & backends</h1>
+            <p>Select an existing frontend or backend and update its block safely.</p>
+        </header>
+
+        <main>
+            <div class="card-surface">
+                <div class="section-title">Edit section</div>
+                <div class="section-subtitle">Updates only the selected block, not the whole config.</div>
+
+                {% if message %}
+                <div class="alert alert-info">{{ message }}</div>
+                {% endif %}
+
+                <form method="POST">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="section_type">Section Type</label>
+                            <select class="form-control" id="section_type" name="section_type">
+                                <option value="frontend">Frontend</option>
+                                <option value="backend">Backend</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="section_name">Section Name</label>
+                            <select class="form-control" id="section_name" name="section_name"></select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="section_content">Section Content</label>
+                        <textarea class="form-control" id="section_content" name="section_content" rows="18" placeholder="Select a section to edit..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </form>
             </div>
-
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-        </form>
+        </main>
     </div>
-</main>
+</div>
 
 <script>
     const sections = {{ sections | tojson }};

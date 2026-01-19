@@ -8,99 +8,110 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="app-shell">
-<header class="topbar">
-    <a href="/home" class="brand-link">
-        <span class="brand-icon"><i class="fas fa-globe"></i></span>
-        <span class="brand-text">
-            <span class="brand-title">HAProxy Configurator</span>
-            <span class="brand-subtitle">Secure routing, clear control</span>
-        </span>
-    </a>
-    <nav class="nav-links">
-        <a href="/home" class="nav-link">Home</a>
-        <a href="/" class="nav-link">Add Frontend & Backend</a>
-        <a href="/manage" class="nav-link">Edit Frontends & Backends</a>
-        <a href="/certificates" class="nav-link active">Manage Certificates</a>
-        <a href="/config" class="nav-link">Config Settings</a>
-        <a href="/logs" class="nav-link">Security Events</a>
-        <a href="/statistics" class="nav-link">Statistics</a>
-        <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-link" target="_blank">HAProxy Stats</a>
-    </nav>
-    <div class="theme-toggle">
-        <span>Dark mode</span>
-        <label class="switch">
-            <input type="checkbox" data-theme-toggle>
-            <span class="slider"></span>
-        </label>
-    </div>
-</header>
-<main class="main-content">
-    <div class="page-header">
-        <h1>Manage certificates</h1>
-        <p>View ACME-issued certificates and trigger renewals.</p>
-    </div>
-
-    <div class="card-surface">
-        <div class="section-title">Stored certificates</div>
-        <div class="section-subtitle">Records are stored in MySQL; PEMs typically live in <strong>/etc/haproxy-configurator/ssl</strong>.</div>
-
-        {% if message %}
-        <div class="alert alert-info">{{ message }}</div>
-        {% endif %}
-
-        <form method="POST" style="margin-bottom: 16px;">
-            <input type="hidden" name="action" value="add">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="domain">Domain</label>
-                    <input type="text" class="form-control" name="domain" placeholder="vaultwarden.hcmc.online">
-                </div>
-                <div class="form-group">
-                    <label for="pem_path">PEM Path</label>
-                    <input type="text" class="form-control" name="pem_path" placeholder="/etc/haproxy-configurator/ssl/vaultwarden.hcmc.online.pem">
-                </div>
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="/home" class="brand-link">
+            <span class="brand-icon"><i class="fas fa-globe"></i></span>
+            <span class="brand-text">
+                <span class="brand-title">HAProxy Configurator</span>
+                <span class="brand-subtitle">Routing control center</span>
+            </span>
+        </a>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Overview</div>
+            <a href="/home" class="nav-item"><i class="fas fa-chart-line"></i>Dashboard</a>
+            <div class="nav-section">Configuration</div>
+            <a href="/" class="nav-item"><i class="fas fa-plus-circle"></i>Frontends & Backends</a>
+            <a href="/manage" class="nav-item"><i class="fas fa-sliders-h"></i>Edit Blocks</a>
+            <a href="/config" class="nav-item"><i class="fas fa-cogs"></i>Base Config</a>
+            <div class="nav-section">TLS & Security</div>
+            <a href="/certificates" class="nav-item active"><i class="fas fa-lock"></i>Certificates</a>
+            <a href="/logs" class="nav-item"><i class="fas fa-shield-alt"></i>Security Events</a>
+            <div class="nav-section">Analytics</div>
+            <a href="/statistics" class="nav-item"><i class="fas fa-wave-square"></i>Statistics</a>
+            <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-item" target="_blank"><i class="fas fa-external-link-alt"></i>HAProxy Stats</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="theme-toggle">
+                <span>Dark mode</span>
+                <label class="switch">
+                    <input type="checkbox" data-theme-toggle>
+                    <span class="slider"></span>
+                </label>
             </div>
-            <button type="submit" class="btn btn-outline-secondary">Add Existing Certificate</button>
-        </form>
-
-        {% if certificates %}
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>Domain</th>
-                        <th>Expires</th>
-                        <th>PEM Path</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cert in certificates %}
-                    <tr>
-                        <td>{{ cert.domain }}</td>
-                        <td>{{ cert.expires_at }}</td>
-                        <td>{{ cert.pem_path }}</td>
-                        <td>
-                            <form method="POST">
-                                <input type="hidden" name="action" value="renew">
-                                <input type="hidden" name="domain" value="{{ cert.domain }}">
-                                <button type="submit" class="btn btn-primary btn-sm">Renew</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
-        {% else %}
-        <p class="section-subtitle">No ACME certificates found yet.</p>
-        {% endif %}
+    </aside>
+
+    <div class="content-area">
+        <header class="page-header">
+            <h1>Manage certificates</h1>
+            <p>View, add, and renew PEM bundles for frontends.</p>
+        </header>
+
+        <main>
+            <div class="card-surface">
+                <div class="section-title">Stored certificates</div>
+                <div class="section-subtitle">Records are stored in MySQL; PEMs typically live in <strong>/etc/haproxy-configurator/ssl</strong>.</div>
+
+                {% if message %}
+                <div class="alert alert-info">{{ message }}</div>
+                {% endif %}
+
+                <form method="POST" style="margin-bottom: 16px;">
+                    <input type="hidden" name="action" value="add">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="domain">Domain</label>
+                            <input type="text" class="form-control" name="domain" placeholder="vaultwarden.hcmc.online">
+                        </div>
+                        <div class="form-group">
+                            <label for="pem_path">PEM Path</label>
+                            <input type="text" class="form-control" name="pem_path" placeholder="/etc/haproxy-configurator/ssl/vaultwarden.hcmc.online.pem">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-outline-secondary">Add Existing Certificate</button>
+                </form>
+
+                {% if certificates %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Expires</th>
+                                <th>PEM Path</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cert in certificates %}
+                            <tr>
+                                <td>{{ cert.domain }}</td>
+                                <td>{{ cert.expires_at }}</td>
+                                <td>{{ cert.pem_path }}</td>
+                                <td>
+                                    <form method="POST">
+                                        <input type="hidden" name="action" value="renew">
+                                        <input type="hidden" name="domain" value="{{ cert.domain }}">
+                                        <button type="submit" class="btn btn-primary btn-sm">Renew</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="section-subtitle">No ACME certificates found yet.</p>
+                {% endif %}
+            </div>
+        </main>
     </div>
-</main>
+</div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
