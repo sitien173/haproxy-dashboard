@@ -68,6 +68,16 @@ HAProxy Configurator offers a rich GUI to create, validate, and manage HAProxy c
 5. Set the database connection string:
    ```export DATABASE_URL="mysql+pymysql://haproxy:password@127.0.0.1:3306/haproxy_configurator"```
 
+### Database reset (clean schema)
+
+If you are switching to the structured form-based schema and want a clean start, drop and recreate the database:
+
+```
+mysql -u root -p -e "DROP DATABASE haproxy_configurator; CREATE DATABASE haproxy_configurator;"
+```
+
+Then restart the service so it recreates tables on boot.
+
 5. run the installation script:
    ```chmod +x install.sh```
    

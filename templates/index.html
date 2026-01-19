@@ -52,9 +52,10 @@
                 <p>Configure listener, security rules, and backend pool in one pass.</p>
             </header>
 
+            {% set fd = form_data or {} %}
             <main>
 
-    <div id="frontend_container" class="card-surface">
+    <div id="frontend_container" class="card-surface{% if backend_only %} is-disabled{% endif %}">
          <div class="section-title"><i style="margin-right: 8px;" class="fas fa-globe"></i>Frontend details</div>
          <div class="section-subtitle">Define the listener and protocol settings for incoming traffic.</div>
         <!-- Display success message when the form is submitted successfully -->
@@ -68,26 +69,29 @@
     {% endif %}
 
       <form method="post" action="/">
+        <input type="hidden" name="form_mode" value="{{ form_mode }}">
+        <input type="hidden" name="frontend_id" value="{{ fd.frontend_id }}">
+        <input type="hidden" name="backend_id" value="{{ fd.backend_id }}">
     <div class="form-row">
         <div class="form-group">
             <label for="frontend_name">Frontend Name:</label>
-            <input type="text" class="form-control" name="frontend_name" required>
+            <input type="text" class="form-control" name="frontend_name" value="{{ fd.frontend_name }}" {% if backend_only %}disabled{% endif %} required>
         </div>
 
         <div class="form-group">
             <label for="frontend_ip">Frontend IP:</label>
-            <input type="text" class="form-control" name="frontend_ip" required>
+            <input type="text" class="form-control" name="frontend_ip" value="{{ fd.frontend_ip }}" {% if backend_only %}disabled{% endif %} required>
         </div>
 
         <div class="form-group">
             <label for="frontend_port">Frontend Port:</label>
-            <input type="number" class="form-control" name="frontend_port" required>
+            <input type="number" class="form-control" name="frontend_port" value="{{ fd.frontend_port }}" {% if backend_only %}disabled{% endif %} required>
         </div>
     </div>
 
     <!-- Checkbox for SSL Certificate -->
     <div class="form-check">
-        <input type="checkbox" class="form-check-input" id="ssl_checkbox" name="ssl_checkbox">
+        <input type="checkbox" class="form-check-input" id="ssl_checkbox" name="ssl_checkbox" {% if fd.use_ssl %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label class="form-check-label" for="ssl_checkbox"><i style="margin: 8px;" class="fas fa-lock"></i>Use SSL Certificate</label>
     </div>
 
@@ -95,24 +99,24 @@
     <div class="form-group" style="display: none;" id="ssl_fields">
         <div class="form-group">
             <label for="ssl_mode">Certificate Option:</label>
-            <select class="form-control" id="ssl_mode" name="ssl_mode">
-                <option value="acme">Request New Certificate (ACME)</option>
-                <option value="existing">Select Existing Certificate</option>
+            <select class="form-control" id="ssl_mode" name="ssl_mode" {% if backend_only %}disabled{% endif %}>
+                <option value="acme" {% if fd.ssl_mode == 'acme' %}selected{% endif %}>Request New Certificate (ACME)</option>
+                <option value="existing" {% if fd.ssl_mode != 'acme' %}selected{% endif %}>Select Existing Certificate</option>
             </select>
         </div>
 
         <div class="form-group" id="acme_fields" style="display: none;">
             <label for="domain_name">Domain Name (ACME):</label>
-            <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com">
+            <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com" value="{{ fd.domain_name }}" {% if backend_only %}disabled{% endif %}>
         </div>
 
         <div class="form-group" id="existing_cert_fields" style="display: none;">
             <label for="ssl_cert_path_select">Select Certificate:</label>
-            <select class="form-control" id="ssl_cert_path_select" name="ssl_cert_path_select">
+            <select class="form-control" id="ssl_cert_path_select" name="ssl_cert_path_select" {% if backend_only %}disabled{% endif %}>
                 {% if certificates %}
                     <option value="" selected disabled>Choose a certificate</option>
                     {% for cert in certificates %}
-                        <option value="{{ cert.pem_path }}">{{ cert.domain }} (expires {{ cert.expires_at }})</option>
+                        <option value="{{ cert.id }}" {% if fd.ssl_cert_id|int == cert.id %}selected{% endif %}>{{ cert.domain }} (expires {{ cert.expires_at }})</option>
                     {% endfor %}
                 {% else %}
                     <option value="" selected disabled>No certificates found</option>
@@ -123,116 +127,116 @@
 
         <div class="form-group" id="manual_cert_fields" style="display: none;">
             <label for="ssl_cert_path_manual">SSL Certificate Path (PEM):</label>
-            <input type="text" id="ssl_cert_path_manual" class="form-control" name="ssl_cert_path_manual" placeholder="/etc/haproxy-configurator/ssl/example.com.pem">
+            <input type="text" id="ssl_cert_path_manual" class="form-control" name="ssl_cert_path_manual" placeholder="/etc/haproxy-configurator/ssl/example.com.pem" {% if backend_only %}disabled{% endif %}>
         </div>
         <div style="padding-bottom: 15px;" class="form-check">
-            <input type="checkbox" class="form-check-input" id="ssl_redirect_checkbox" name="ssl_redirect_checkbox">
+            <input type="checkbox" class="form-check-input" id="ssl_redirect_checkbox" name="ssl_redirect_checkbox" {% if fd.https_redirect %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
             <label class="form-check-label" for="ssl_redirect_checkbox"><i style="margin: 8px;" class="fas fa-arrow-circle-right"></i>Add Redirect to HTTPS</label>
         </div>
     </div>
 
     <div style="margin-top: 15px;" class="form-group">
         <label for="lb_method">Load Balancing Method:</label>
-        <select class="form-control" name="lb_method" id="lb_method">
-            <option value="roundrobin">Round Robin</option>
-            <option value="leastconn">Least Connections</option>
-            <option value="source">Source</option>
-            <option value="wrr">WRR</option>
-            <option value="wlc">WLC</option>
-            <option value="random">Random</option>
+        <select class="form-control" name="lb_method" id="lb_method" {% if backend_only %}disabled{% endif %}>
+            <option value="roundrobin" {% if fd.lb_method == 'roundrobin' %}selected{% endif %}>Round Robin</option>
+            <option value="leastconn" {% if fd.lb_method == 'leastconn' %}selected{% endif %}>Least Connections</option>
+            <option value="source" {% if fd.lb_method == 'source' %}selected{% endif %}>Source</option>
+            <option value="wrr" {% if fd.lb_method == 'wrr' %}selected{% endif %}>WRR</option>
+            <option value="wlc" {% if fd.lb_method == 'wlc' %}selected{% endif %}>WLC</option>
+            <option value="random" {% if fd.lb_method == 'random' %}selected{% endif %}>Random</option>
         </select>
     </div>
 
     <div class="form-group">
         <label for="protocol">Protocol:</label>
-        <select class="form-control" name="protocol" id="protocol" required>
-            <option value="" disabled selected>--Select mode--</option>
-            <option value="tcp">TCP</option>
-            <option value="http">HTTP</option>
+        <select class="form-control" name="protocol" id="protocol" {% if backend_only %}disabled{% endif %} required>
+            <option value="" disabled {% if not fd.protocol %}selected{% endif %}>--Select mode--</option>
+            <option value="tcp" {% if fd.protocol == 'tcp' %}selected{% endif %}>TCP</option>
+            <option value="http" {% if fd.protocol == 'http' %}selected{% endif %}>HTTP</option>
         </select>
     </div>
 
     <!-- DOS Protection -->
     <div class="form-check">
-        <input type="checkbox" class="form-check-input" name="add_dos" id="add_dos">
+        <input type="checkbox" class="form-check-input" name="add_dos" id="add_dos" {% if fd.dos_enabled %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label style="margin-bottom: 10px;" class="form-check-label" for="add_dos"><i style="margin: 8px;" class="fas fa-shield-alt"></i> Add DOS Protection</label>
     </div>
 
     <div class="form-group" id="dos_fields" style="display: none; padding-bottom: 20px;">
         <label for="limit_requests">Limit Requests, e.g: 20:</label>
-        <input type="text" class="form-control" name="limit_requests">
+        <input type="text" class="form-control" name="limit_requests" value="{{ fd.limit_requests }}" {% if backend_only %}disabled{% endif %}>
         <label for="ban_duration">IP Ban Duration(in seconds, e.g: 15s):</label>
-        <input type="text" class="form-control" name="ban_duration">
+        <input type="text" class="form-control" name="ban_duration" value="{{ fd.ban_duration }}" {% if backend_only %}disabled{% endif %}>
     </div>
 
     <!-- SQL Injection -->
     <div style="margin-top: 8px; padding-bottom: 15px; display: none;" class="form-check" id="sql_injection_container">
-        <input type="checkbox" class="form-check-input" id="sql_injection_check" name="sql_injection_check">
+        <input type="checkbox" class="form-check-input" id="sql_injection_check" name="sql_injection_check" {% if fd.sql_injection_enabled %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label class="form-check-label" for="sql_injection_check"><i style="margin: 8px;" class="fas fa-shield-alt"></i>Activate SQL Injection Protection</label>
     </div>
 
     <!-- XSS -->
     <div style="margin-top: 8px; padding-bottom: 15px; display: none;" class="form-check" id="XSS_container">
-        <input type="checkbox" class="form-check-input" id="xss_check" name="xss_check">
+        <input type="checkbox" class="form-check-input" id="xss_check" name="xss_check" {% if fd.xss_enabled %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label class="form-check-label" for="xss_check"><i style="margin: 8px;" class="fas fa-shield-alt"></i>Activate XSS Protection</label>
     </div>
 
     <!-- Remote File Uploads -->
     <div style="margin-top: 8px; padding-bottom: 15px; display: none;" class="form-check" id="remote_uploads_container">
-        <input type="checkbox" class="form-check-input" id="remote_uploads_check" name="remote_uploads_check">
+        <input type="checkbox" class="form-check-input" id="remote_uploads_check" name="remote_uploads_check" {% if fd.remote_upload_enabled %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label class="form-check-label" for="remote_uploads_check"><i style="margin: 8px;" class="fas fa-shield-alt"></i>Activate Remote File Upload Protection</label>
     </div>
 
     <!-- Deny Webshells -->
     <div style="margin-top: 8px; padding-bottom: 15px; display: none;" class="form-check" id="webshells_container">
-        <input type="checkbox" class="form-check-input" id="webshells_check" name="webshells_check">
+        <input type="checkbox" class="form-check-input" id="webshells_check" name="webshells_check" {% if fd.webshells_enabled %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label class="form-check-label" for="webshells_check"><i style="margin: 8px;" class="fas fa-shield-alt"></i>Activate Webshells Protection</label>
     </div>
 
     <div class="form-check" style="margin-top: 8px;">
-        <input type="checkbox" class="form-check-input" name="add_acl" id="add_acl">
+        <input type="checkbox" class="form-check-input" name="add_acl" id="add_acl" {% if fd.add_acl %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label style="margin-bottom: 10px;" class="form-check-label" for="add_acl"><i style="margin: 8px;" class="fas fa-user-lock"></i> Add ACL for Frontend</label>
     </div>
 
     <div class="form-group" id="acl_fields" style="display: none; padding-bottom: 20px;">
         <label for="acl">ACL:</label>
-        <input type="text" class="form-control" name="acl" placeholder="example: acl_name">
+        <input type="text" class="form-control" name="acl" placeholder="example: acl_name" value="{{ fd.acl }}" {% if backend_only %}disabled{% endif %}>
         <label for="acl_action">ACL Action:</label>
-        <input type="text" class="form-control" name="acl_action" placeholder="example: hdr(host) -i test.com">
+        <input type="text" class="form-control" name="acl_action" placeholder="example: hdr(host) -i test.com" value="{{ fd.acl_action }}" {% if backend_only %}disabled{% endif %}>
         <label for="backend_name_acl">Backend Name:</label>
-        <input type="text" class="form-control" name="backend_name_acl" placeholder="example: somebackend">
+        <input type="text" class="form-control" name="backend_name_acl" placeholder="example: somebackend" value="{{ fd.backend_name_acl }}" {% if backend_only %}disabled{% endif %}>
     </div>
 
     <div class="form-check" id="forbidden_acl_container" style="display: none; margin-top: 8px;">
-        <input type="checkbox" class="form-check-input" name="add_acl_path" id="add_acl_path">
+        <input type="checkbox" class="form-check-input" name="add_acl_path" id="add_acl_path" {% if fd.add_acl_path %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label style="margin-bottom: 10px;" class="form-check-label" for="add_acl_path"><i style="margin: 8px;" class="fas fa-ban"></i> Block Sensitive Path</label>
     </div>
 
     <div class="form-group" id="forbidden_fields" style="display: none; padding-bottom: 20px;">
         <label for="forbidden_name">ACL Name:</label>
-        <input type="text" class="form-control" name="forbidden_name" id="forbidden_name">
+        <input type="text" class="form-control" name="forbidden_name" id="forbidden_name" value="{{ fd.forbidden_name }}" {% if backend_only %}disabled{% endif %}>
         <label for="allowed_ip">Allowed IP Addresses(e.g: 192.168.3.13 193.168.3.14):</label>
-        <input type="text" class="form-control" name="allowed_ip">
+        <input type="text" class="form-control" name="allowed_ip" value="{{ fd.allowed_ip }}" {% if backend_only %}disabled{% endif %}>
         <label for="forbidden_path">Path(e.g: /admin):</label>
-        <input type="text" class="form-control" name="forbidden_path">
+        <input type="text" class="form-control" name="forbidden_path" value="{{ fd.forbidden_path }}" {% if backend_only %}disabled{% endif %}>
     </div>
 
     <div class="form-check" id="path_based_container" style="display: none; margin-top: 8px;">
-        <input type="checkbox" class="form-check-input" name="add_path_based" id="add_path_based">
+        <input type="checkbox" class="form-check-input" name="add_path_based" id="add_path_based" {% if fd.add_path_based %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label style="margin-bottom: 10px;" class="form-check-label" for="add_path_based"><i style="margin: 8px;" class="fas fa-arrow-circle-right"></i>Add Path Based Redirect</label>
     </div>
 
     <div class="form-group" id="base_redirect_fields" style="display: none; padding-bottom: 20px;">
         <label for="redirect_domain_name">Domain to be redirected:</label>
-        <input type="text" class="form-control" name="redirect_domain_name" id="redirect_domain_name" placeholder="e.g: test2.com or test2.com:8888 (port matters incase of unusual ports)">
+        <input type="text" class="form-control" name="redirect_domain_name" id="redirect_domain_name" placeholder="e.g: test2.com or test2.com:8888 (port matters incase of unusual ports)" value="{{ fd.redirect_domain_name }}" {% if backend_only %}disabled{% endif %}>
         <label for="root_redirect">Root Path To Be Redirected:</label>
-        <input type="text" class="form-control" name="root_redirect" placeholder="e.g: /">
+        <input type="text" class="form-control" name="root_redirect" placeholder="e.g: /" value="{{ fd.root_redirect }}" {% if backend_only %}disabled{% endif %}>
         <label for="redirect_to">Redirect To Path:</label>
-        <input type="text" class="form-control" name="redirect_to" placeholder="e.g: /test **this will redirect test2.com/ to test2.com/test**">
+        <input type="text" class="form-control" name="redirect_to" placeholder="e.g: /test **this will redirect test2.com/ to test2.com/test**" value="{{ fd.redirect_to }}" {% if backend_only %}disabled{% endif %}>
     </div>
 
     <div style="margin-top: 8px; padding-bottom: 15px; display: none;" class="form-check" id="forward_for_container">
-        <input type="checkbox" class="form-check-input" id="forward_for_check" name="forward_for_check">
+        <input type="checkbox" class="form-check-input" id="forward_for_check" name="forward_for_check" {% if fd.forward_for %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
         <label class="form-check-label" for="forward_for_check"><i style="margin: 8px;" class="fas fa-network-wired"></i>Use option forwardfor</label>
     </div>
 
@@ -244,7 +248,7 @@
 
             <!-- HTTP Health Check -->
             <div class="form-group" id="health_check_container_http" style="display: none;">
-                <input type="checkbox" name="health_check" id="health_check" onchange="toggleHealthCheck()">
+                <input type="checkbox" name="health_check" id="health_check" onchange="toggleHealthCheck()" {% if fd.health_check %}checked{% endif %}>
                 <label for="health_check">
                     <i style="margin: 8px;" class="fas fa-heartbeat"></i>
                     Enable Health Check <strong>(HTTP mode only)</strong>
@@ -253,12 +257,12 @@
 
             <div class="form-group" id="health_check_field" style="display: none;">
                 <label for="health_check_link">Health Check URL (e.g: your-website.com/health.html):</label>
-                <input type="text" class="form-control" name="health_check_link">
+                <input type="text" class="form-control" name="health_check_link" value="{{ fd.health_check_link }}">
             </div>
 
             <!-- TCP Health Check -->
             <div class="form-group" id="health_check_container_tcp" style="display: none;">
-                <input type="checkbox" name="health_check2" id="health_check2" onchange="toggleHealthCheck2()">
+                <input type="checkbox" name="health_check2" id="health_check2" onchange="toggleHealthCheck2()" {% if fd.health_check_tcp %}checked{% endif %}>
                 <label for="health_check2">
                     <i style="margin: 8px;" class="fas fa-heartbeat"></i>
                     Enable Health Check <strong>(TCP mode)</strong>
@@ -267,38 +271,63 @@
 
             <!-- Sticky Session -->
             <div class="form-group">
-                <input type="checkbox" name="sticky_session" id="sticky_session" onclick="toggleStickySession()">
+                <input type="checkbox" name="sticky_session" id="sticky_session" onclick="toggleStickySession()" {% if fd.sticky_session %}checked{% endif %}>
                 <label for="sticky_session"><i style="margin: 8px;" class="fas fa-link"></i> Enable Sticky Session</label>
             </div>
 
             <div class="form-group" id="sticky_session_field" style="display: none;">
                 <label for="sticky_session_type">Session Persistence Type:</label>
                 <select class="form-control" name="sticky_session_type">
-                    <option value="cookie">Cookie SERVERID</option>
-                    <option value="stick-table">Stick-Table ip</option>
+                    <option value="cookie" {% if fd.sticky_session_type == 'cookie' %}selected{% endif %}>Cookie SERVERID</option>
+                    <option value="stick-table" {% if fd.sticky_session_type == 'stick-table' %}selected{% endif %}>Stick-Table ip</option>
                 </select>
             </div>
 
             <!-- Custom Header -->
             <div class="form-group">
-                <input type="checkbox" name="add_header" id="add_header" onclick="toggleCustomHeader()">
+                <input type="checkbox" name="add_header" id="add_header" onclick="toggleCustomHeader()" {% if fd.add_header %}checked{% endif %}>
                 <label for="add_header"><i style="margin: 8px;" class="fas fa-reply"></i> Add Custom Header</label>
             </div>
 
             <div class="form-group" id="header_field" style="display: none;">
                 <label for="header_name">Header Name:</label>
-                <input type="text" class="form-control" name="header_name" placeholder="e.g: X-Client-IP">
+                <input type="text" class="form-control" name="header_name" placeholder="e.g: X-Client-IP" value="{{ fd.header_name }}">
                 <label for="header_value">Header Value:</label>
-                <input type="text" class="form-control" name="header_value" placeholder="e.g: test">
+                <input type="text" class="form-control" name="header_value" placeholder="e.g: test" value="{{ fd.header_value }}">
             </div>
 
             <div class="form-group">
                 <label for="backend_name">Backend Name:</label>
-                <input type="text" class="form-control" name="backend_name" required>
+                <input type="text" class="form-control" name="backend_name" value="{{ fd.backend_name }}" required>
             </div>
 
             <!-- Backend Servers Section -->
             <div id="backend_servers_container">
+                {% if fd.backend_servers %}
+                    {% for server in fd.backend_servers %}
+                    <div class="form-row backend-server-row">
+                        <div class="form-group">
+                            <label for="name{{ loop.index }}">Backend Server Name:</label>
+                            <input type="text" id="name{{ loop.index }}" class="form-control" name="backend_server_names[]" placeholder="server{{ loop.index }}" value="{{ server.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="ip{{ loop.index }}">Backend Server IP:</label>
+                            <input type="text" id="ip{{ loop.index }}" class="form-control" name="backend_server_ips[]" value="{{ server.ip }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="port{{ loop.index }}">Backend Server Port:</label>
+                            <input type="number" id="port{{ loop.index }}" class="form-control" name="backend_server_ports[]" value="{{ server.port }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="maxconn{{ loop.index }}">MaxConn:</label>
+                            <input type="number" id="maxconn{{ loop.index }}" class="form-control" name="backend_server_maxconns[]" value="{{ server.maxconn }}">
+                            {% if loop.index > 1 %}
+                            <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeBackendServer(this)">Remove</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
                 <!-- Initial Backend Server Row -->
                 <div class="form-row backend-server-row">
                     <div class="form-group">
@@ -318,11 +347,12 @@
                         <input type="number" id="maxconn1" class="form-control" name="backend_server_maxconns[]">
                     </div>
                 </div>
+                {% endif %}
             </div>
 
             <div style="margin-top: 12px;">
                 <button type="button" class="btn btn-outline-secondary" onclick="addBackendServer()">+ Add Backend Server</button>
-                <input type="submit" id="success_btn" class="btn btn-primary" value="Submit">
+                <input type="submit" id="success_btn" class="btn btn-primary" value="{{ 'Update' if form_mode != 'create' else 'Submit' }}">
             </div>
     </div>
 
@@ -330,7 +360,7 @@
 
     <script>
         // Function to add a new backend server row
-        let serverCount = 1;
+        let serverCount = {{ fd.backend_servers|length if fd.backend_servers else 1 }};
 
         function addBackendServer() {
             serverCount++;
@@ -767,7 +797,7 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
         });
     </script>
 
-     <script>
+    <script>
         const sslCheckbox = document.getElementById('ssl_checkbox');
         const sslFields = document.getElementById('ssl_fields');
         const sslModeSelect = document.getElementById('ssl_mode');
@@ -813,6 +843,37 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
             certSelect.addEventListener('change', toggleManualCert);
         }
         toggleSslFields();
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof toggleHealthCheck === 'function') {
+                toggleHealthCheck();
+            }
+            if (typeof toggleHealthCheck2 === 'function') {
+                toggleHealthCheck2();
+            }
+            if (typeof toggleStickySession === 'function') {
+                toggleStickySession();
+            }
+            if (typeof toggleCustomHeader === 'function') {
+                toggleCustomHeader();
+            }
+            if (typeof toggleSqlInjection === 'function') {
+                toggleSqlInjection();
+            }
+            if (typeof toggleXSS === 'function') {
+                toggleXSS();
+            }
+            if (typeof toggleForwardFor === 'function') {
+                toggleForwardFor();
+            }
+            if (typeof toggleForbiddenCheck === 'function') {
+                toggleForbiddenCheck();
+            }
+            if (typeof PathBasedToggle === 'function') {
+                PathBasedToggle();
+            }
+        });
     </script>
             </main>
         </div>

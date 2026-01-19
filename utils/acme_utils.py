@@ -88,6 +88,7 @@ def list_installed_certificates(config_path=None):
     records = Certificate.query.order_by(Certificate.domain.asc()).all()
     return [
         {
+            'id': record.id,
             'domain': record.domain,
             'pem_path': record.pem_path,
             'expires_at': record.expires_at or 'Unknown',

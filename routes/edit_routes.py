@@ -2,14 +2,8 @@ from flask import Blueprint, redirect, render_template, request, url_for
 import subprocess
 from auth.auth_middleware import requires_auth  # Updated import
 from db import db
-from db.models import BackendBlock, ConfigBase, Certificate, FrontendBlock
-from utils.haproxy_config import (
-    DEFAULT_BASE_CONFIG,
-    parse_haproxy_sections,
-    replace_haproxy_section,
-    write_haproxy_config,
-    _extract_default_backend,
-)
+from db.models import BackendPool, ConfigBase, Certificate, Frontend
+from utils.haproxy_config import DEFAULT_BASE_CONFIG, write_haproxy_config
 from utils.acme_utils import _get_cert_enddate, _get_cert_issuer, list_installed_certificates, renew_certificate
 
 edit_bp = Blueprint('edit', __name__)
@@ -61,43 +55,29 @@ def manage_base_config():
 @requires_auth
 def manage_haproxy_sections():
     message = None
-    selected_type = None
-    selected_name = None
     if request.method == 'POST':
         action = request.form.get('action', 'update').strip()
-        section_type = request.form.get('section_type', '').strip()
-        section_name = request.form.get('section_name', '').strip()
-        section_content = request.form.get('section_content', '').strip()
         target_type = request.form.get('target_type', '').strip()
         target_name = request.form.get('target_name', '').strip()
 
-        if action == 'update':
-            if not section_type or not section_name:
-                message = "Please select a frontend or backend."
-            elif not section_content:
-                message = "Section content is required."
-            else:
-                first_line = section_content.splitlines()[0].strip()
-                if not first_line.startswith(f"{section_type} "):
-                    message = f"Section must start with '{section_type} <name>'."
-                else:
-                    ok, detail = replace_haproxy_section(section_type, section_name, section_content)
-                    message = detail
-                    if ok:
-                        selected_type = section_type
-                        selected_name = section_name
-        elif action == 'edit':
-            if target_type and target_name:
-                selected_type = target_type
-                selected_name = target_name
+        if action == 'edit':
+            if target_type == 'frontend':
+                record = Frontend.query.filter_by(name=target_name).first()
+                if record:
+                    return redirect(url_for('main.index', edit_frontend=record.id))
+            elif target_type == 'backend':
+                record = BackendPool.query.filter_by(name=target_name).first()
+                if record:
+                    return redirect(url_for('main.index', edit_backend=record.id))
+            message = "Target not found for edit."
         elif action in {'enable', 'disable', 'delete', 'clone'}:
             if not target_type or not target_name:
                 message = "Missing target for action."
             else:
                 if target_type == 'frontend':
-                    record = FrontendBlock.query.filter_by(name=target_name).first()
+                    record = Frontend.query.filter_by(name=target_name).first()
                 else:
-                    record = BackendBlock.query.filter_by(name=target_name).first()
+                    record = BackendPool.query.filter_by(name=target_name).first()
 
                 if not record:
                     message = f"{target_type.title()} '{target_name}' not found."
@@ -106,53 +86,92 @@ def manage_haproxy_sections():
                         base_name = f"{record.name}-copy"
                         suffix = 1
                         new_name = base_name
-                        model = FrontendBlock if target_type == 'frontend' else BackendBlock
+                        model = Frontend if target_type == 'frontend' else BackendPool
                         while model.query.filter_by(name=new_name).first():
                             suffix += 1
                             new_name = f"{base_name}-{suffix}"
 
-                        content_lines = record.content.splitlines()
-                        if content_lines:
-                            content_lines[0] = f"{target_type} {new_name}"
-                        new_content = "\n".join(content_lines) + "\n"
                         if target_type == 'frontend':
-                            clone = FrontendBlock(
+                            clone = Frontend(
                                 name=new_name,
                                 bind_ip=record.bind_ip,
                                 bind_port=record.bind_port,
                                 mode=record.mode,
-                                acl_enabled=record.acl_enabled,
-                                default_backend=record.default_backend,
-                                ssl_cert_path=record.ssl_cert_path,
+                                lb_method=record.lb_method,
+                                default_backend_id=record.default_backend_id,
                                 enabled=False,
-                                content=new_content,
+                                use_ssl=record.use_ssl,
+                                ssl_cert_id=record.ssl_cert_id,
+                                domain_name=record.domain_name,
+                                https_redirect=record.https_redirect,
+                                forward_for=record.forward_for,
+                                dos_enabled=record.dos_enabled,
+                                dos_limit=record.dos_limit,
+                                dos_ban_duration=record.dos_ban_duration,
+                                sql_injection_enabled=record.sql_injection_enabled,
+                                xss_enabled=record.xss_enabled,
+                                remote_upload_enabled=record.remote_upload_enabled,
+                                webshells_enabled=record.webshells_enabled,
                             )
+                            if record.acl:
+                                clone.acl = record.acl.__class__(
+                                    name=record.acl.name,
+                                    action=record.acl.action,
+                                    backend_id=record.acl.backend_id,
+                                )
+                            if record.forbidden_path:
+                                clone.forbidden_path = record.forbidden_path.__class__(
+                                    acl_name=record.forbidden_path.acl_name,
+                                    allowed_ip=record.forbidden_path.allowed_ip,
+                                    path=record.forbidden_path.path,
+                                )
+                            if record.redirect_rule:
+                                clone.redirect_rule = record.redirect_rule.__class__(
+                                    host_match=record.redirect_rule.host_match,
+                                    root_path=record.redirect_rule.root_path,
+                                    redirect_to=record.redirect_rule.redirect_to,
+                                )
                         else:
-                            clone = BackendBlock(
+                            clone = BackendPool(
                                 name=new_name,
                                 enabled=False,
-                                content=new_content,
+                                mode=record.mode,
+                                health_check_enabled=record.health_check_enabled,
+                                health_check_path=record.health_check_path,
+                                health_check_tcp=record.health_check_tcp,
+                                sticky_enabled=record.sticky_enabled,
+                                sticky_type=record.sticky_type,
+                                add_header_enabled=record.add_header_enabled,
+                                header_name=record.header_name,
+                                header_value=record.header_value,
                             )
+                            for server in record.servers:
+                                clone.servers.append(server.__class__(
+                                    name=server.name,
+                                    ip=server.ip,
+                                    port=server.port,
+                                    maxconn=server.maxconn,
+                                    enabled=False,
+                                ))
                         db.session.add(clone)
                         db.session.commit()
                         write_haproxy_config()
                         message = f"{target_type.title()} cloned as {new_name} (disabled)."
                     elif action == 'enable':
                         if target_type == 'frontend':
-                            conflict = FrontendBlock.query.filter(
-                                FrontendBlock.enabled.is_(True),
-                                FrontendBlock.bind_ip == record.bind_ip,
-                                FrontendBlock.bind_port == record.bind_port,
-                                FrontendBlock.id != record.id,
+                            conflict = Frontend.query.filter(
+                                Frontend.enabled.is_(True),
+                                Frontend.bind_ip == record.bind_ip,
+                                Frontend.bind_port == record.bind_port,
+                                Frontend.id != record.id,
                             ).first()
-                            backend_name = record.default_backend or _extract_default_backend(record.content)
                             backend_ok = True
-                            if backend_name:
-                                backend_ok = BackendBlock.query.filter_by(name=backend_name, enabled=True).first() is not None
+                            if record.default_backend_id:
+                                backend_ok = BackendPool.query.filter_by(id=record.default_backend_id, enabled=True).first() is not None
                             if conflict:
                                 message = f"Frontend bind {record.bind_ip}:{record.bind_port} is already in use."
                             elif not backend_ok:
-                                message = f"Enable backend '{backend_name}' before enabling this frontend."
+                                message = "Enable the backend before enabling this frontend."
                             else:
                                 record.enabled = True
                                 db.session.commit()
@@ -165,12 +184,10 @@ def manage_haproxy_sections():
                             message = f"Backend '{record.name}' enabled."
                     elif action == 'disable':
                         if target_type == 'backend':
-                            in_use = None
-                            for frontend in FrontendBlock.query.filter_by(enabled=True).all():
-                                backend_name = frontend.default_backend or _extract_default_backend(frontend.content)
-                                if backend_name == record.name:
-                                    in_use = frontend
-                                    break
+                            in_use = Frontend.query.filter(
+                                Frontend.enabled.is_(True),
+                                Frontend.default_backend_id == record.id,
+                            ).first()
                             if in_use:
                                 message = f"Disable frontend '{in_use.name}' before disabling this backend."
                             else:
@@ -185,12 +202,7 @@ def manage_haproxy_sections():
                             message = f"Frontend '{record.name}' disabled."
                     elif action == 'delete':
                         if target_type == 'backend':
-                            in_use = None
-                            for frontend in FrontendBlock.query.all():
-                                backend_name = frontend.default_backend or _extract_default_backend(frontend.content)
-                                if backend_name == record.name:
-                                    in_use = frontend
-                                    break
+                            in_use = Frontend.query.filter_by(default_backend_id=record.id).first()
                             if in_use:
                                 message = f"Delete or repoint frontend '{in_use.name}' before deleting this backend."
                             else:
@@ -204,27 +216,18 @@ def manage_haproxy_sections():
                             write_haproxy_config()
                             message = f"Frontend '{target_name}' deleted."
 
-    try:
-        sections = parse_haproxy_sections()
-    except FileNotFoundError:
-        sections = []
-        message = message or "HAProxy configuration file not found."
-    except PermissionError:
-        sections = []
-        message = message or "Permission denied reading HAProxy configuration file."
-
-    frontends = FrontendBlock.query.order_by(FrontendBlock.created_at.desc()).all()
-    backends = BackendBlock.query.order_by(BackendBlock.created_at.desc()).all()
+    frontends = Frontend.query.order_by(Frontend.created_at.desc()).all()
+    backends = BackendPool.query.order_by(BackendPool.created_at.desc()).all()
 
     frontend_rows = []
     for frontend in frontends:
-        backend_name = frontend.default_backend or _extract_default_backend(frontend.content)
+        backend_name = frontend.backend.name if frontend.backend else None
         frontend_rows.append({
             'name': frontend.name,
             'bind': f"{frontend.bind_ip}:{frontend.bind_port}",
             'mode': frontend.mode,
             'backend': backend_name,
-            'ssl': bool(frontend.ssl_cert_path),
+            'ssl': frontend.use_ssl,
             'enabled': frontend.enabled,
             'updated_at': frontend.updated_at,
         })
@@ -239,12 +242,9 @@ def manage_haproxy_sections():
 
     return render_template(
         'manage.html',
-        sections=sections,
         message=message,
         frontends=frontend_rows,
         backends=backend_rows,
-        selected_type=selected_type,
-        selected_name=selected_name,
     )
 
 

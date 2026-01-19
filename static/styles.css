@@ -256,6 +256,11 @@ body.dark-mode::before {
   animation: fadeUp 0.5s ease;
 }
 
+.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .section-title {
   font-family: "Sora", "Segoe UI", sans-serif;
   font-size: 1.2rem;
