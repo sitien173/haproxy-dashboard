@@ -26,6 +26,7 @@ def load_acme_config(config_path=None):
         acme_sh = os.path.expanduser('~/.acme.sh/acme.sh')
 
     return {
+        'acme_home': acme_home,
         'acme_sh': acme_sh,
         'challenge': challenge,
         'webroot': webroot,
@@ -37,6 +38,12 @@ def load_acme_config(config_path=None):
 
 def _sanitize_domain(domain):
     return re.sub(r'[^A-Za-z0-9.-]', '_', domain)
+
+
+def _acme_home_flags(acme_home):
+    if not acme_home:
+        return []
+    return ['--home', acme_home, '--config-home', acme_home]
 
 
 def issue_certificate(domain, config_path=None):
@@ -64,7 +71,7 @@ def issue_certificate(domain, config_path=None):
         return combined_pem_path
 
     challenge = config['challenge']
-    issue_cmd = [acme_sh, '--issue', '-d', domain]
+    issue_cmd = [acme_sh] + _acme_home_flags(config['acme_home']) + ['--issue', '-d', domain, '--debug']
     if challenge == 'webroot':
         if not config['webroot']:
             raise ValueError("ACME webroot challenge requires webroot in acme.ini.")
@@ -78,20 +85,31 @@ def issue_certificate(domain, config_path=None):
     else:
         raise ValueError(f"Unsupported ACME challenge: {challenge}")
 
+    # Ensure acme.sh can find its configuration by setting HOME and LE_WORKING_DIR
+    # This is necessary when running from systemd service without a proper shell environment
+    env = os.environ.copy()
+    acme_home = config['acme_home']
+    if acme_home:
+        # Set HOME to the parent directory so acme.sh finds ~/.acme.sh
+        parent_dir = os.path.dirname(acme_home)
+        if parent_dir:
+            env['HOME'] = parent_dir
+        env['LE_WORKING_DIR'] = acme_home
+
     try:
-        subprocess.run(issue_cmd, check=True, capture_output=True, text=True)
+        subprocess.run(issue_cmd, check=True, capture_output=True, text=True, env=env)
     except subprocess.CalledProcessError as exc:
         error_output = exc.stderr or exc.stdout or str(exc)
         raise RuntimeError(f"acme.sh issue failed: {error_output}") from exc
 
     install_cmd = [
-        acme_sh, '--install-cert', '-d', domain,
+        acme_sh, *_acme_home_flags(config['acme_home']), '--install-cert', '-d', domain,
         '--fullchain-file', fullchain_path,
         '--key-file', privkey_path,
         '--reloadcmd', config['reload_cmd'],
     ]
     try:
-        subprocess.run(install_cmd, check=True, capture_output=True, text=True)
+        subprocess.run(install_cmd, check=True, capture_output=True, text=True, env=env)
     except subprocess.CalledProcessError as exc:
         error_output = exc.stderr or exc.stdout or str(exc)
         raise RuntimeError(f"acme.sh install failed: {error_output}") from exc

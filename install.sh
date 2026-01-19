@@ -4,7 +4,7 @@
 sudo mkdir -p /etc/haproxy-configurator
 
 # Copy files to the 'haproxy-configurator' folder
-
+sudo cp -r venv/ /etc/haproxy-configurator/venv/
 sudo cp -r templates/ /etc/haproxy-configurator/
 sudo cp app.py /etc/haproxy-configurator/
 sudo cp Makefile /etc/haproxy-configurator/
@@ -25,7 +25,7 @@ cat << EOF | sudo tee /etc/systemd/system/haproxy-configurator.service
 Description=Haproxy-Configurator Service By Alon Zur
 
 [Service]
-ExecStart=/usr/bin/python3 /etc/haproxy-configurator/app.py
+ExecStart=/etc/haproxy-configurator/venv/bin/python3 /etc/haproxy-configurator/app.py
 Restart=always
 RestartSec=3
 StandardOutput=/var/log/haproxy-configurator_std_output.log
