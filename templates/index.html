@@ -349,6 +349,7 @@
                 </div>
                 {% endif %}
             </div>
+            <input type="hidden" id="backend_servers_payload" name="backend_servers_payload">
 
             <div style="margin-top: 12px;">
                 <button type="button" class="btn btn-outline-secondary" onclick="addBackendServer()">+ Add Backend Server</button>
@@ -403,6 +404,37 @@
             } else {
                 alert("You must have at least one backend server.");
             }
+        }
+
+        function buildBackendServerPayload() {
+            const rows = document.querySelectorAll('.backend-server-row');
+            const servers = [];
+            rows.forEach((row, index) => {
+                const nameInput = row.querySelector('input[name="backend_server_names[]"]');
+                const ipInput = row.querySelector('input[name="backend_server_ips[]"]');
+                const portInput = row.querySelector('input[name="backend_server_ports[]"]');
+                const maxconnInput = row.querySelector('input[name="backend_server_maxconns[]"]');
+                const name = nameInput ? nameInput.value.trim() : '';
+                const ip = ipInput ? ipInput.value.trim() : '';
+                const port = portInput ? portInput.value.trim() : '';
+                const maxconn = maxconnInput ? maxconnInput.value.trim() : '';
+                servers.push({
+                    name: name || `server${index + 1}`,
+                    ip,
+                    port,
+                    maxconn,
+                });
+            });
+
+            const payloadInput = document.getElementById('backend_servers_payload');
+            if (payloadInput) {
+                payloadInput.value = JSON.stringify(servers);
+            }
+        }
+
+        const backendForm = document.querySelector('form[action="/"]');
+        if (backendForm) {
+            backendForm.addEventListener('submit', buildBackendServerPayload);
         }
 
         // Protocol change handler to show/hide health check options

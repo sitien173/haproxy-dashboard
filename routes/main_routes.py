@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, redirect, render_template, request, url_for
 
 from auth.auth_middleware import requires_auth
@@ -77,6 +79,28 @@ def _build_form_data(frontend=None, backend=None):
 
 
 def _build_backend_servers(request_form):
+    payload = request_form.get('backend_servers_payload', '').strip()
+    if payload:
+        try:
+            servers = json.loads(payload)
+            normalized = []
+            for index, server in enumerate(servers):
+                ip = (server.get('ip') or '').strip()
+                port = (server.get('port') or '').strip()
+                if not ip or not port:
+                    continue
+                name = (server.get('name') or '').strip() or f"server{index + 1}"
+                maxconn = (server.get('maxconn') or '').strip() or None
+                normalized.append({
+                    'name': name,
+                    'ip': ip,
+                    'port': port,
+                    'maxconn': maxconn,
+                })
+            return normalized
+        except json.JSONDecodeError:
+            pass
+
     names = request_form.getlist('backend_server_names[]')
     ips = request_form.getlist('backend_server_ips[]')
     ports = request_form.getlist('backend_server_ports[]')
