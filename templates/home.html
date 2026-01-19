@@ -1,152 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Home Page</title>
-    <!-- Add Bootstrap CSS link here -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    
-    <style>
-        /* Custom CSS for the header */
-        header {
-            background-color: #f2f2f2;
-            padding: 20px;
-            display: flex;
-            padding-left: 100px;
-            align-items: center;
-        }
-
-        .logo {
-            width: 300px; /* Adjust the width as needed */
-            height: auto;
-        }
-
-        .menu-link {
-            text-decoration: none;
-            padding: 10px 20px;
-            color: #333;
-            font-weight: bold;
-        }
-
-        .menu-link:hover {
-            background-color: #3B444B;
-            color: white;
-            text-decoration: none;
-        }
-        
-        #summary_container{
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-        }
-        
-         /* Custom CSS for dark mode */
-      .dark-mode {
-          background-color: #121B2E;
-          color: white;
-      }
-      
-      .dark-mode .header1{
-      background-color: #25354e;
-          color: white;
-      box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-      }
-      
-      
-      .dark-mode .menu-link{
-      text-decoration: none;
-            padding: 10px 20px;
-            color: white;
-            font-weight: bold;
-      
-      }
-      
-      .dark-mode  .logo {
-      
-            color: #2bb9c7;
-            font-weight: bold;
-      
-      }
-      
-      .dark-mode .fas-fa-globe{
-      color: #2bb9c7;
-      }
-      
-      .dark-mode .menu-link:hover{
-      text-decoration: none;
-            padding: 10px 20px;
-            color: #2bb9c7;
-            font-weight: bold;
-      
-      }
-      
-      .dark-mode #summary_container{
-      
-      box-shadow: 0 0 15px 5px rgba(43, 185, 199, 0.05);
-      border: none;
-      }
-
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body>
-<header class="header1" id="header1">
-    <a href="/home" style="text-decoration: none;">
-        <h3 style="font-size: 22px;" class="logo">
-            <i style="margin: 8px;" class="fas fa-globe"></i>Haproxy Configurator
-        </h3>
+<body class="app-shell">
+<header class="topbar">
+    <a href="/home" class="brand-link">
+        <span class="brand-icon"><i class="fas fa-globe"></i></span>
+        <span class="brand-text">
+            <span class="brand-title">HAProxy Configurator</span>
+            <span class="brand-subtitle">Secure routing, clear control</span>
+        </span>
     </a>
-    <a href="/home" class="menu-link">Home</a>
-    <a href="/" class="menu-link">Add Frontend & Backend</a>
-    <a href="/edit" class="menu-link">Edit HAProxy Config</a>
-    <a href="/logs" class="menu-link">Security Events</a>
-    <a href="/statistics" class="menu-link">Statictics</a>
-    <a  href="http://{{ request.host.split(':')[0] }}:8080/stats" class="menu-link" >HAProxy Stats</a>
-    
-    <div class="custom-control custom-switch ml-auto">
-    <input type="checkbox" class="custom-control-input" id="darkModeSwitch">
-    <label class="custom-control-label" for="darkModeSwitch">Dark Mode</label>
-</div>
-
+    <nav class="nav-links">
+        <a href="/home" class="nav-link active">Home</a>
+        <a href="/" class="nav-link">Add Frontend & Backend</a>
+        <a href="/edit" class="nav-link">Edit HAProxy Config</a>
+        <a href="/logs" class="nav-link">Security Events</a>
+        <a href="/statistics" class="nav-link">Statistics</a>
+        <a href="http://{{ request.host.split(':')[0] }}:8080/stats" class="nav-link" target="_blank">HAProxy Stats</a>
+    </nav>
+    <div class="theme-toggle">
+        <span>Dark mode</span>
+        <label class="switch">
+            <input type="checkbox" data-theme-toggle>
+            <span class="slider"></span>
+        </label>
+    </div>
 </header>
 
-    <div style=" border-radius: 5px; padding: 40px;" id="summary_container" class="container mt-5">
-        <h3 style="margin-bottom: 20px;" class="mt-4">Welcome to Your HAProxy Configurator. Here's A Short Summary:</h3>
-
-        <p class="lead"><i style="margin: 8px;" class="fas fa-globe"></i> <strong>{{ frontend_count }}</strong> frontends</p>
-        <p class="lead"><i style="margin-right: 8px;" class="fas fa-sitemap"></i> <strong>{{ backend_count }}</strong> backends</p>
-        <p class="lead"><i style="margin: 8px;" class="fas fa-user-lock"></i> <strong>{{ acl_count }}</strong> acl's</p>
-        <p class="lead"><i style="margin: 8px;" class="fas fa-code"></i> <strong>{{ layer7_count }}</strong> layer7(mode http) loadbalanced frontends</p>
-        <p class="lead"><i style="margin: 8px;" class="fas fa-network-wired"></i> <strong>{{ layer4_count }}</strong> layer4(mode tcp)loadbalanced frontends</p>
-        <div class="mt-4">
-            <a href="/" class="btn btn-primary"><i style="margin: 8px;" class="fas fa-plus"></i>Add New Frontend/Backend</a>
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Overview</h1>
+            <p>Fast snapshot of frontends, backends, and security controls.</p>
         </div>
-    </div>
 
-    <!-- Add Bootstrap JS and jQuery links here (if needed) -->
+        <div class="card-surface">
+            <div class="section-title">Infrastructure summary</div>
+            <div class="section-subtitle">Track active configuration elements at a glance.</div>
+
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <span><i class="fas fa-globe" style="margin-right: 6px;"></i>Frontends</span>
+                    <strong>{{ frontend_count }}</strong>
+                </div>
+                <div class="stat-card">
+                    <span><i class="fas fa-sitemap" style="margin-right: 6px;"></i>Backends</span>
+                    <strong>{{ backend_count }}</strong>
+                </div>
+                <div class="stat-card">
+                    <span><i class="fas fa-user-lock" style="margin-right: 6px;"></i>ACLs</span>
+                    <strong>{{ acl_count }}</strong>
+                </div>
+                <div class="stat-card">
+                    <span><i class="fas fa-code" style="margin-right: 6px;"></i>Layer 7 (HTTP)</span>
+                    <strong>{{ layer7_count }}</strong>
+                </div>
+                <div class="stat-card">
+                    <span><i class="fas fa-network-wired" style="margin-right: 6px;"></i>Layer 4 (TCP)</span>
+                    <strong>{{ layer4_count }}</strong>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <a href="/" class="btn btn-primary"><i style="margin-right: 8px;" class="fas fa-plus"></i>Add New Frontend/Backend</a>
+            </div>
+        </div>
+    </main>
+
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    
-    
-<script>
-    // Function to toggle dark mode
-    function toggleDarkMode() {
-        const body = document.body;
-        body.classList.toggle('dark-mode');
-
-        // Save user's preference to localStorage
-        const isDarkMode = body.classList.contains('dark-mode');
-        localStorage.setItem('darkMode', isDarkMode); // Store the actual value
-    }
-
-    // Check if dark mode preference is saved in localStorage
-    const savedDarkMode = localStorage.getItem('darkMode');
-    if (savedDarkMode === 'true') {
-        document.body.classList.add('dark-mode');
-    }
-
-    // Add event listener to the switch
-    const darkModeSwitch = document.getElementById('darkModeSwitch');
-    darkModeSwitch.addEventListener('change', toggleDarkMode);
-</script>
-
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
