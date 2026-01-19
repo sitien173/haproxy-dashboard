@@ -44,11 +44,19 @@ def render_haproxy_config():
 
     frontends = FrontendBlock.query.order_by(FrontendBlock.created_at.asc()).all()
     backends = BackendBlock.query.order_by(BackendBlock.created_at.asc()).all()
+    enabled_backend_names = {backend.name for backend in backends if backend.enabled}
 
     for frontend in frontends:
+        if not frontend.enabled:
+            continue
+        backend_name = frontend.default_backend or _extract_default_backend(frontend.content)
+        if backend_name and backend_name not in enabled_backend_names:
+            continue
         parts.append(frontend.content.rstrip())
         parts.append("")
     for backend in backends:
+        if not backend.enabled:
+            continue
         parts.append(backend.content.rstrip())
         parts.append("")
 
@@ -64,7 +72,7 @@ def write_haproxy_config():
 def is_frontend_exist(frontend_name, frontend_ip, frontend_port):
     existing = FrontendBlock.query.filter(
         (FrontendBlock.name == frontend_name) |
-        ((FrontendBlock.bind_ip == frontend_ip) & (FrontendBlock.bind_port == str(frontend_port)))
+        ((FrontendBlock.bind_ip == frontend_ip) & (FrontendBlock.bind_port == str(frontend_port)) & (FrontendBlock.enabled.is_(True)))
     ).first()
     return existing is not None
 
@@ -231,14 +239,16 @@ def update_haproxy_config(
         sticky_session, sticky_session_type, add_header, header_name, header_value
     )
 
-    backend = BackendBlock(name=backend_name, content=backend_block)
+    backend = BackendBlock(name=backend_name, content=backend_block, enabled=True)
     frontend = FrontendBlock(
         name=frontend_name,
         bind_ip=frontend_ip,
         bind_port=str(frontend_port),
         mode=protocol,
         acl_enabled=bool(is_acl),
+        default_backend=backend_name,
         ssl_cert_path=ssl_cert_path if use_ssl else None,
+        enabled=True,
         content=frontend_block,
     )
 
@@ -283,6 +293,15 @@ def _detect_acl(content):
     return any(line.strip().startswith('acl ') for line in content.splitlines())
 
 
+def _extract_default_backend(content):
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith('default_backend '):
+            _, backend = stripped.split(None, 1)
+            return backend.strip()
+    return None
+
+
 def parse_haproxy_sections():
     sections = []
     for frontend in FrontendBlock.query.order_by(FrontendBlock.created_at.asc()).all():
@@ -323,6 +342,7 @@ def replace_haproxy_section(section_type, section_name, new_content):
         if mode:
             record.mode = mode
         record.acl_enabled = _detect_acl(content)
+        record.default_backend = _extract_default_backend(content)
     else:
         record = BackendBlock.query.filter_by(name=section_name).first()
         if not record:

@@ -410,6 +410,26 @@ textarea:focus {
   border-color: var(--line);
 }
 
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-pill.enabled {
+  background: rgba(18, 100, 163, 0.12);
+  color: var(--primary);
+}
+
+.status-pill.disabled {
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--muted);
+}
+
 pre {
   background: rgba(15, 23, 42, 0.06);
   border-radius: 12px;

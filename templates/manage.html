@@ -53,15 +53,147 @@
         </header>
 
         <main>
+            {% if message %}
+            <div class="alert alert-info">{{ message }}</div>
+            {% endif %}
             <div class="card-surface">
-                <div class="section-title">Edit section</div>
-                <div class="section-subtitle">Updates only the selected block, not the whole config.</div>
+                <div class="section-title">Frontends</div>
+                <div class="section-subtitle">Manage listeners, SSL, and routing targets.</div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Bind</th>
+                                <th>Mode</th>
+                                <th>Default Backend</th>
+                                <th>SSL</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for frontend in frontends %}
+                            <tr>
+                                <td>{{ frontend.name }}</td>
+                                <td>{{ frontend.bind }}</td>
+                                <td>{{ frontend.mode }}</td>
+                                <td>{{ frontend.backend or '-' }}</td>
+                                <td>{{ 'Yes' if frontend.ssl else 'No' }}</td>
+                                <td>
+                                    <span class="status-pill {{ 'enabled' if frontend.enabled else 'disabled' }}">
+                                        {{ 'Enabled' if frontend.enabled else 'Disabled' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <form method="POST" style="display:inline-block;">
+                                        <input type="hidden" name="action" value="edit">
+                                        <input type="hidden" name="target_type" value="frontend">
+                                        <input type="hidden" name="target_name" value="{{ frontend.name }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Edit</button>
+                                    </form>
+                                    <form method="POST" style="display:inline-block;">
+                                        <input type="hidden" name="action" value="clone">
+                                        <input type="hidden" name="target_type" value="frontend">
+                                        <input type="hidden" name="target_name" value="{{ frontend.name }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Clone</button>
+                                    </form>
+                                    <form method="POST" style="display:inline-block;">
+                                        <input type="hidden" name="action" value="{{ 'disable' if frontend.enabled else 'enable' }}">
+                                        <input type="hidden" name="target_type" value="frontend">
+                                        <input type="hidden" name="target_name" value="{{ frontend.name }}">
+                                        {% if frontend.enabled %}
+                                        <button type="submit" class="btn btn-warning btn-sm">Disable</button>
+                                        {% else %}
+                                        <button type="submit" class="btn btn-primary btn-sm">Enable</button>
+                                        {% endif %}
+                                    </form>
+                                    <form method="POST" style="display:inline-block;" onsubmit="return confirm('Delete frontend {{ frontend.name }}?');">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="target_type" value="frontend">
+                                        <input type="hidden" name="target_name" value="{{ frontend.name }}">
+                                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7">No frontends yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-                {% if message %}
-                <div class="alert alert-info">{{ message }}</div>
-                {% endif %}
+            <div class="card-surface">
+                <div class="section-title">Backends</div>
+                <div class="section-subtitle">Pools used by frontends and ACL routes.</div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for backend in backends %}
+                            <tr>
+                                <td>{{ backend.name }}</td>
+                                <td>
+                                    <span class="status-pill {{ 'enabled' if backend.enabled else 'disabled' }}">
+                                        {{ 'Enabled' if backend.enabled else 'Disabled' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <form method="POST" style="display:inline-block;">
+                                        <input type="hidden" name="action" value="edit">
+                                        <input type="hidden" name="target_type" value="backend">
+                                        <input type="hidden" name="target_name" value="{{ backend.name }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Edit</button>
+                                    </form>
+                                    <form method="POST" style="display:inline-block;">
+                                        <input type="hidden" name="action" value="clone">
+                                        <input type="hidden" name="target_type" value="backend">
+                                        <input type="hidden" name="target_name" value="{{ backend.name }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Clone</button>
+                                    </form>
+                                    <form method="POST" style="display:inline-block;">
+                                        <input type="hidden" name="action" value="{{ 'disable' if backend.enabled else 'enable' }}">
+                                        <input type="hidden" name="target_type" value="backend">
+                                        <input type="hidden" name="target_name" value="{{ backend.name }}">
+                                        {% if backend.enabled %}
+                                        <button type="submit" class="btn btn-warning btn-sm">Disable</button>
+                                        {% else %}
+                                        <button type="submit" class="btn btn-primary btn-sm">Enable</button>
+                                        {% endif %}
+                                    </form>
+                                    <form method="POST" style="display:inline-block;" onsubmit="return confirm('Delete backend {{ backend.name }}?');">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="target_type" value="backend">
+                                        <input type="hidden" name="target_name" value="{{ backend.name }}">
+                                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3">No backends yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card-surface">
+                <div class="section-title">Advanced editor</div>
+                <div class="section-subtitle">Edit a single block if you need custom directives.</div>
 
                 <form method="POST">
+                    <input type="hidden" name="action" value="update">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="section_type">Section Type</label>
@@ -90,6 +222,8 @@
 
 <script>
     const sections = {{ sections | tojson }};
+    const selectedType = {{ selected_type | tojson }};
+    const selectedName = {{ selected_name | tojson }};
     const typeSelect = document.getElementById('section_type');
     const nameSelect = document.getElementById('section_name');
     const contentArea = document.getElementById('section_content');
@@ -102,7 +236,9 @@
             const option = document.createElement('option');
             option.value = section.name;
             option.textContent = section.name;
-            if (index === 0) {
+            if (selectedName && section.name === selectedName) {
+                option.selected = true;
+            } else if (!selectedName && index === 0) {
                 option.selected = true;
             }
             nameSelect.appendChild(option);
@@ -120,6 +256,9 @@
     typeSelect.addEventListener('change', populateNames);
     nameSelect.addEventListener('change', updateContent);
 
+    if (selectedType) {
+        typeSelect.value = selectedType;
+    }
     populateNames();
 </script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>

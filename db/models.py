@@ -21,7 +21,9 @@ class FrontendBlock(db.Model):
     bind_port = db.Column(db.String(16), nullable=False)
     mode = db.Column(db.String(16), nullable=False)
     acl_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    default_backend = db.Column(db.String(128), nullable=True)
     ssl_cert_path = db.Column(db.String(512), nullable=True)
+    enabled = db.Column(db.Boolean, default=True, nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -32,6 +34,7 @@ class BackendBlock(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), unique=True, nullable=False)
+    enabled = db.Column(db.Boolean, default=True, nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
