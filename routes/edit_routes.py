@@ -195,17 +195,18 @@ def manage_haproxy_sections():
                         message = f"{target_type.title()} cloned as {new_name} (disabled)."
                     elif action == 'enable':
                         if target_type == 'frontend':
-                            conflict = Frontend.query.filter(
-                                Frontend.enabled.is_(True),
-                                Frontend.bind_ip == record.bind_ip,
-                                Frontend.bind_port == record.bind_port,
-                                Frontend.id != record.id,
-                            ).first()
+                            conflict = None
+                            if record.domain_name:
+                                conflict = Frontend.query.filter(
+                                    Frontend.enabled.is_(True),
+                                    Frontend.domain_name == record.domain_name,
+                                    Frontend.id != record.id,
+                                ).first()
                             backend_ok = True
                             if record.default_backend_id:
                                 backend_ok = BackendPool.query.filter_by(id=record.default_backend_id, enabled=True).first() is not None
                             if conflict:
-                                message = f"Frontend bind {record.bind_ip}:{record.bind_port} is already in use."
+                                message = f"Domain {record.domain_name} is already enabled on '{conflict.name}'."
                             elif not backend_ok:
                                 message = "Enable the backend before enabling this frontend."
                             else:
@@ -279,7 +280,7 @@ def manage_haproxy_sections():
         backend_servers_count = len(frontend.backend.servers) if frontend.backend else 0
         frontend_rows.append({
             'name': frontend.name,
-            'bind': f"{frontend.bind_ip}:{frontend.bind_port}",
+            'domain': frontend.domain_name,
             'mode': frontend.mode,
             'backend': backend_name,
             'backend_servers_count': backend_servers_count,

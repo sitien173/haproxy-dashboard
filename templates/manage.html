@@ -69,7 +69,7 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Bind</th>
+                                <th>Domain</th>
                                 <th>Mode</th>
                                 <th>Backend</th>
                                 <th>Servers</th>
@@ -82,7 +82,7 @@
                             {% for frontend in frontends %}
                             <tr>
                                 <td>{{ frontend.name }}</td>
-                                <td>{{ frontend.bind }}</td>
+                                <td>{{ frontend.domain or '-' }}</td>
                                 <td>{{ frontend.mode }}</td>
                                 <td>{{ frontend.backend or '-' }}</td>
                                 <td>{{ frontend.backend_servers_count }}</td>

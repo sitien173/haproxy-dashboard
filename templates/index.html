@@ -79,13 +79,9 @@
         </div>
 
         <div class="form-group">
-            <label for="frontend_ip">Frontend IP:</label>
-            <input type="text" class="form-control" name="frontend_ip" value="{{ fd.frontend_ip }}" {% if backend_only %}disabled{% endif %} required>
-        </div>
-
-        <div class="form-group">
-            <label for="frontend_port">Frontend Port:</label>
-            <input type="number" class="form-control" name="frontend_port" value="{{ fd.frontend_port }}" {% if backend_only %}disabled{% endif %} required>
+            <label for="domain_name">Domain / Hostname:</label>
+            <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com" value="{{ fd.domain_name }}" {% if backend_only %}disabled{% endif %} required>
+            <small class="text-muted">Shared listeners: HTTP :80 and HTTPS :443.</small>
         </div>
     </div>
 
@@ -106,8 +102,7 @@
         </div>
 
         <div class="form-group" id="acme_fields" style="display: none;">
-            <label for="domain_name">Domain Name (ACME):</label>
-            <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com" value="{{ fd.domain_name }}" {% if backend_only %}disabled{% endif %}>
+            <small class="text-muted">Certificate will be issued for the domain above.</small>
         </div>
 
         <div class="form-group" id="existing_cert_fields" style="display: none;">
@@ -150,9 +145,7 @@
     <div class="form-group">
         <label for="protocol">Protocol:</label>
         <select class="form-control" name="protocol" id="protocol" {% if backend_only %}disabled{% endif %} required>
-            <option value="" disabled {% if not fd.protocol %}selected{% endif %}>--Select mode--</option>
-            <option value="tcp" {% if fd.protocol == 'tcp' %}selected{% endif %}>TCP</option>
-            <option value="http" {% if fd.protocol == 'http' %}selected{% endif %}>HTTP</option>
+            <option value="http" {% if fd.protocol != 'http' %}selected{% endif %}>HTTP</option>
         </select>
     </div>
 

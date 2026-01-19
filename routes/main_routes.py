@@ -212,8 +212,6 @@ def index():
         backend_id = request.form.get('backend_id') or None
 
         frontend_name = request.form.get('frontend_name', '').strip()
-        frontend_ip = request.form.get('frontend_ip', '').strip()
-        frontend_port = request.form.get('frontend_port', '').strip()
         lb_method = request.form.get('lb_method', '').strip()
         protocol = request.form.get('protocol', '').strip()
 
@@ -234,8 +232,8 @@ def index():
         acl_action = request.form.get('acl_action', '').strip()
         acl_backend_name = request.form.get('backend_name_acl', '').strip()
 
-        use_ssl = 'ssl_checkbox' in request.form
         domain_name = request.form.get('domain_name', '').strip()
+        use_ssl = 'ssl_checkbox' in request.form
         https_redirect = 'ssl_redirect_checkbox' in request.form
         dos_enabled = 'add_dos' in request.form
         ban_duration = request.form.get('ban_duration', '').strip()
@@ -256,13 +254,17 @@ def index():
         redirect_domain_name = request.form.get('redirect_domain_name', '').strip()
         root_redirect = request.form.get('root_redirect', '').strip()
         redirect_to = request.form.get('redirect_to', '').strip()
+        frontend_ip = '0.0.0.0'
+        frontend_port = '443' if use_ssl else '80'
 
         try:
             if form_mode != 'edit_backend':
-                if not frontend_name or not frontend_ip or not frontend_port or not protocol:
-                    raise ValueError("Frontend name, IP, port, and protocol are required.")
-                if is_frontend_exist(frontend_name, frontend_ip, frontend_port, ignore_id=frontend_id):
-                    raise ValueError("Frontend or port already exists.")
+                if not frontend_name or not domain_name or not protocol:
+                    raise ValueError("Frontend name, domain, and protocol are required.")
+                if is_frontend_exist(frontend_name, domain_name, ignore_id=frontend_id):
+                    raise ValueError("Frontend name or domain already exists.")
+                if protocol != 'http':
+                    raise ValueError("Domain routing requires HTTP mode.")
 
             if not backend_name and form_mode != 'edit_backend':
                 raise ValueError("Backend name is required.")
