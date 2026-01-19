@@ -1,19 +1,12 @@
 from flask import Flask, render_template, render_template_string
-import configparser
-import ssl
 from routes.main_routes import main_bp
 from routes.edit_routes import edit_bp
 from utils.stats_utils import fetch_haproxy_stats, parse_haproxy_stats
+from utils.ssl_utils import load_ssl_config, build_ssl_context
 from auth.auth_middleware import setup_auth
 from log_parser import parse_log_file
 
 app = Flask(__name__)
-
-# Load basic auth credentials
-auth_config = configparser.ConfigParser()
-auth_config.read('/etc/haproxy-configurator/auth/auth.cfg')
-BASIC_AUTH_USERNAME = auth_config.get('auth', 'username')
-BASIC_AUTH_PASSWORD = auth_config.get('auth', 'password')
 
 # Register blueprints
 app.register_blueprint(main_bp)
@@ -23,12 +16,8 @@ app.register_blueprint(edit_bp)
 setup_auth(app)
 
 # SSL Configuration
-config2 = configparser.ConfigParser()
-config2.read('/etc/haproxy-configurator/ssl.ini')
-certificate_path = config2.get('ssl', 'certificate_path')
-private_key_path = config2.get('ssl', 'private_key_path')
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-ssl_context.load_cert_chain(certfile=certificate_path, keyfile=private_key_path)
+certificate_path, private_key_path = load_ssl_config()
+ssl_context = build_ssl_context(certificate_path, private_key_path)
 
 # Statistics Route
 @app.route('/statistics')

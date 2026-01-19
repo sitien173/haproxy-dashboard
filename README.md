@@ -83,6 +83,29 @@ if the script failes to run with "bad interpreter" error, run the following:
 
 The application comes with a self signed certificate related to tthe domain "haproxy-configurator.local". The path to the PEM file can be changed inside ssl.ini configuration file.
 
+### TLS Automation (acme.sh)
+
+This project can automate TLS with acme.sh. The helper script issues a certificate and wires the service to reload on renewal:
+
+```bash
+sudo /etc/haproxy-configurator/scripts/setup_acme.sh -d your-domain.example -e admin@example.com
+```
+
+Optional: use webroot challenges if port 80 is already taken:
+
+```bash
+sudo /etc/haproxy-configurator/scripts/setup_acme.sh -d your-domain.example -e admin@example.com -w /var/www/html
+```
+
+After the script runs, `ssl.ini` is updated to point at:
+
+```
+/etc/haproxy-configurator/ssl/fullchain.pem
+/etc/haproxy-configurator/ssl/privkey.pem
+```
+
+If these files are missing, the app falls back to the bundled self-signed PEM at `/etc/haproxy-configurator/ssl/haproxy-configurator.pem`.
+
 ## Usage
 Launch the HAProxy Configurator by navigating to https://your-haproxy-server-ip:5000.
 
