@@ -302,6 +302,11 @@ textarea {
   transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
+select.form-control,
+select.form-select {
+  padding: 0;
+}
+
 .form-control:focus,
 textarea:focus {
   border-color: var(--primary);
@@ -310,6 +315,9 @@ textarea:focus {
 }
 
 .form-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -318,7 +326,12 @@ textarea:focus {
 }
 
 .form-check-input {
-  margin-top: 0.2rem;
+  margin-top: 0;
+  align-self: center;
+}
+
+.form-check-label {
+  margin-bottom: 0;
 }
 
 .btn {
