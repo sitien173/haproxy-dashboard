@@ -421,16 +421,12 @@ def _build_backend_block(backend, lb_method=None):
         if not header.enabled or not header.name:
             continue
         lines.append(f"    http-request set-header {header.name} \"{header.value or ''}\"")
-    http_paths = [
-        (server.health_check_path or '/')
-        for server in backend.servers
-        if server.health_check_enabled
-    ]
-    if backend.mode == 'http' and http_paths:
-        lines.append(f"    option httpchk GET {http_paths[0]}")
+    if backend.mode == 'http' and backend.health_check_enabled:
+        path = backend.health_check_path or '/'
+        lines.append(f"    option httpchk GET {path}")
         lines.append("    http-check disable-on-404")
         lines.append("    http-check expect string OK")
-    if backend.mode == 'tcp' and any(server.health_check_tcp for server in backend.servers):
+    if backend.mode == 'tcp' and backend.health_check_tcp:
         lines.append("    option tcp-check")
         lines.append("    tcp-check send PING\\r\\n")
         lines.append("    tcp-check send QUIT\\r\\n")
@@ -439,7 +435,7 @@ def _build_backend_block(backend, lb_method=None):
         if not server.enabled:
             continue
         line = f"    server {server.name} {server.ip}:{server.port}"
-        if server.health_check_enabled or server.health_check_tcp:
+        if backend.health_check_enabled or backend.health_check_tcp:
             line += " check"
         if backend.sticky_enabled and backend.sticky_type == 'cookie':
             line += f" cookie {server.name}"

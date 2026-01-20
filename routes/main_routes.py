@@ -90,6 +90,9 @@ def _build_form_data(frontend=None, backend=None):
                 'name': backend.name,
                 'mode': backend.mode,
                 'is_default': link.is_default,
+                'health_check': bool(backend.health_check_enabled),
+                'health_check_link': backend.health_check_path or '',
+                'health_check_tcp': bool(backend.health_check_tcp),
                 'sticky_session': bool(backend.sticky_enabled),
                 'sticky_session_type': backend.sticky_type or 'cookie',
                 'headers': [
@@ -106,9 +109,6 @@ def _build_form_data(frontend=None, backend=None):
                         'ip': server.ip,
                         'port': server.port,
                         'maxconn': server.maxconn or '',
-                        'health_check': bool(server.health_check_enabled),
-                        'health_check_path': server.health_check_path or '',
-                        'health_check_tcp': bool(server.health_check_tcp),
                     }
                     for server in backend.servers
                 ],
@@ -119,6 +119,9 @@ def _build_form_data(frontend=None, backend=None):
             'name': backend.name,
             'mode': backend.mode,
             'is_default': True,
+            'health_check': bool(backend.health_check_enabled),
+            'health_check_link': backend.health_check_path or '',
+            'health_check_tcp': bool(backend.health_check_tcp),
             'sticky_session': bool(backend.sticky_enabled),
             'sticky_session_type': backend.sticky_type or 'cookie',
             'headers': [
@@ -135,9 +138,6 @@ def _build_form_data(frontend=None, backend=None):
                     'ip': server.ip,
                     'port': server.port,
                     'maxconn': server.maxconn or '',
-                    'health_check': bool(server.health_check_enabled),
-                    'health_check_path': server.health_check_path or '',
-                    'health_check_tcp': bool(server.health_check_tcp),
                 }
                 for server in backend.servers
             ],
@@ -184,17 +184,11 @@ def _build_backend_blocks(request_form):
                         continue
                     server_name = (server.get('name') or '').strip() or f"server{index + 1}"
                     maxconn = (server.get('maxconn') or '').strip() or None
-                    health_check = bool(server.get('health_check'))
-                    health_check_path = (server.get('health_check_path') or '').strip()
-                    health_check_tcp = bool(server.get('health_check_tcp'))
                     servers.append({
                         'name': server_name,
                         'ip': ip,
                         'port': port,
                         'maxconn': maxconn,
-                        'health_check': health_check,
-                        'health_check_path': health_check_path,
-                        'health_check_tcp': health_check_tcp,
                     })
                 headers = []
                 for header in block.get('headers') or []:
@@ -211,6 +205,9 @@ def _build_backend_blocks(request_form):
                     'name': name,
                     'mode': (block.get('mode') or 'http').strip(),
                     'is_default': bool(block.get('is_default')),
+                    'health_check': bool(block.get('health_check')),
+                    'health_check_link': (block.get('health_check_link') or '').strip(),
+                    'health_check_tcp': bool(block.get('health_check_tcp')),
                     'sticky_session': bool(block.get('sticky_session')),
                     'sticky_session_type': (block.get('sticky_session_type') or 'cookie').strip(),
                     'headers': headers,
@@ -228,6 +225,9 @@ def _build_backend_blocks(request_form):
         'name': backend_name,
         'mode': request_form.get('protocol', 'http').strip() or 'http',
         'is_default': True,
+        'health_check': 'health_check' in request_form,
+        'health_check_link': request_form.get('health_check_link', '').strip(),
+        'health_check_tcp': 'health_check2' in request_form,
         'sticky_session': 'sticky_session' in request_form,
         'sticky_session_type': request_form.get('sticky_session_type', '').strip() or 'cookie',
         'headers': [],
@@ -508,6 +508,9 @@ def index():
                         name=block['name'],
                         mode=block['mode'] or protocol,
                         enabled=True,
+                        health_check_enabled=block['health_check'],
+                        health_check_path=block['health_check_link'] if block['health_check'] else None,
+                        health_check_tcp=block['health_check_tcp'],
                         sticky_enabled=block['sticky_session'],
                         sticky_type=block['sticky_session_type'] if block['sticky_session'] else None,
                     )
@@ -529,9 +532,6 @@ def index():
                             port=server['port'],
                             maxconn=server['maxconn'],
                             enabled=True,
-                            health_check_enabled=bool(server.get('health_check')),
-                            health_check_path=server.get('health_check_path') or None,
-                            health_check_tcp=bool(server.get('health_check_tcp')),
                         ))
 
                 frontend = Frontend(
@@ -610,6 +610,9 @@ def index():
                         name=block['name'],
                         mode=block['mode'] or protocol,
                         enabled=True,
+                        health_check_enabled=block['health_check'],
+                        health_check_path=block['health_check_link'] if block['health_check'] else None,
+                        health_check_tcp=block['health_check_tcp'],
                         sticky_enabled=block['sticky_session'],
                         sticky_type=block['sticky_session_type'] if block['sticky_session'] else None,
                     )
@@ -631,9 +634,6 @@ def index():
                             port=server['port'],
                             maxconn=server['maxconn'],
                             enabled=True,
-                            health_check_enabled=bool(server.get('health_check')),
-                            health_check_path=server.get('health_check_path') or None,
-                            health_check_tcp=bool(server.get('health_check_tcp')),
                         ))
 
                 frontend.name = frontend_name

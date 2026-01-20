@@ -377,6 +377,22 @@
                         </div>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input backend-health-check" type="checkbox" {% if block.health_check %}checked{% endif %}>
+                                <label class="form-check-label">HTTP Health Check</label>
+                            </div>
+                            <input type="text" class="form-control backend-health-check-link" placeholder="/health" value="{{ block.health_check_link }}">
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input backend-health-check-tcp" type="checkbox" {% if block.health_check_tcp %}checked{% endif %}>
+                                <label class="form-check-label">TCP Health Check</label>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="section-title">Custom headers</div>
                     <div class="backend-headers">
                         {% if block.headers %}
@@ -444,19 +460,6 @@
                                 <input type="number" class="form-control server-maxconn" value="{{ server.maxconn }}">
                                 <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeBackendServer(this)">Remove</button>
                             </div>
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input class="form-check-input server-health-check" type="checkbox" {% if server.health_check %}checked{% endif %}>
-                                    <label class="form-check-label">HTTP Check</label>
-                                </div>
-                                <input type="text" class="form-control server-health-path" placeholder="/health" value="{{ server.health_check_path }}">
-                            </div>
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input class="form-check-input server-health-tcp" type="checkbox" {% if server.health_check_tcp %}checked{% endif %}>
-                                    <label class="form-check-label">TCP Check</label>
-                                </div>
-                            </div>
                         </div>
                         {% endfor %}
                     </div>
@@ -503,6 +506,22 @@
                         </div>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input backend-health-check" type="checkbox">
+                                <label class="form-check-label">HTTP Health Check</label>
+                            </div>
+                            <input type="text" class="form-control backend-health-check-link" placeholder="/health">
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input backend-health-check-tcp" type="checkbox">
+                                <label class="form-check-label">TCP Health Check</label>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="section-title">Custom headers</div>
                     <div class="backend-headers">
                         <div class="form-row backend-header-row">
@@ -545,19 +564,6 @@
                             <div class="form-group">
                                 <label>MaxConn:</label>
                                 <input type="number" class="form-control server-maxconn">
-                            </div>
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input class="form-check-input server-health-check" type="checkbox">
-                                    <label class="form-check-label">HTTP Check</label>
-                                </div>
-                                <input type="text" class="form-control server-health-path" placeholder="/health">
-                            </div>
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input class="form-check-input server-health-tcp" type="checkbox">
-                                    <label class="form-check-label">TCP Check</label>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -619,6 +625,21 @@
                         </select>
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input backend-health-check" type="checkbox">
+                            <label class="form-check-label">HTTP Health Check</label>
+                        </div>
+                        <input type="text" class="form-control backend-health-check-link" placeholder="/health">
+                    </div>
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input backend-health-check-tcp" type="checkbox">
+                            <label class="form-check-label">TCP Health Check</label>
+                        </div>
+                    </div>
+                </div>
                 <div class="section-title">Custom headers</div>
                 <div class="backend-headers">
                     <div class="form-row backend-header-row">
@@ -660,19 +681,6 @@
                         <div class="form-group">
                             <label>MaxConn:</label>
                             <input type="number" class="form-control server-maxconn">
-                        </div>
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input class="form-check-input server-health-check" type="checkbox">
-                                <label class="form-check-label">HTTP Check</label>
-                            </div>
-                            <input type="text" class="form-control server-health-path" placeholder="/health">
-                        </div>
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input class="form-check-input server-health-tcp" type="checkbox">
-                                <label class="form-check-label">TCP Check</label>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -716,19 +724,6 @@
                     <label>MaxConn:</label>
                     <input type="number" class="form-control server-maxconn">
                     <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeBackendServer(this)">Remove</button>
-                </div>
-                <div class="form-group">
-                    <div class="form-check">
-                        <input class="form-check-input server-health-check" type="checkbox">
-                        <label class="form-check-label">HTTP Check</label>
-                    </div>
-                    <input type="text" class="form-control server-health-path" placeholder="/health">
-                </div>
-                <div class="form-group">
-                    <div class="form-check">
-                        <input class="form-check-input server-health-tcp" type="checkbox">
-                        <label class="form-check-label">TCP Check</label>
-                    </div>
                 </div>
             `;
             container.appendChild(row);
@@ -876,15 +871,15 @@
                     const ip = row.querySelector('.server-ip')?.value.trim() || '';
                     const port = row.querySelector('.server-port')?.value.trim() || '';
                     const maxconn = row.querySelector('.server-maxconn')?.value.trim() || '';
-                    const health_check = row.querySelector('.server-health-check')?.checked || false;
-                    const health_check_path = row.querySelector('.server-health-path')?.value.trim() || '';
-                    const health_check_tcp = row.querySelector('.server-health-tcp')?.checked || false;
-                    servers.push({ name, ip, port, maxconn, health_check, health_check_path, health_check_tcp });
+                    servers.push({ name, ip, port, maxconn });
                 });
                 backendBlocks.push({
                     name: block.querySelector('.backend-name')?.value.trim() || '',
                     mode: block.querySelector('.backend-mode')?.value || 'http',
                     is_default: index === (defaultIndex === -1 ? 0 : defaultIndex),
+                    health_check: block.querySelector('.backend-health-check')?.checked || false,
+                    health_check_link: block.querySelector('.backend-health-check-link')?.value.trim() || '',
+                    health_check_tcp: block.querySelector('.backend-health-check-tcp')?.checked || false,
                     sticky_session: block.querySelector('.backend-sticky-session')?.checked || false,
                     sticky_session_type: block.querySelector('.backend-sticky-type')?.value || 'cookie',
                     headers,

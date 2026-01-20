@@ -108,6 +108,9 @@ def manage_haproxy_sections():
                                     name=backend_name,
                                     enabled=False,
                                     mode=source_backend.mode,
+                                    health_check_enabled=source_backend.health_check_enabled,
+                                    health_check_path=source_backend.health_check_path,
+                                    health_check_tcp=source_backend.health_check_tcp,
                                     sticky_enabled=source_backend.sticky_enabled,
                                     sticky_type=source_backend.sticky_type,
                                 )
@@ -124,9 +127,6 @@ def manage_haproxy_sections():
                                         port=server.port,
                                         maxconn=server.maxconn,
                                         enabled=False,
-                                        health_check_enabled=server.health_check_enabled,
-                                        health_check_path=server.health_check_path,
-                                        health_check_tcp=server.health_check_tcp,
                                     ))
                                 db.session.add(cloned_backend)
                                 db.session.flush()
@@ -196,6 +196,9 @@ def manage_haproxy_sections():
                                 name=new_name,
                                 enabled=False,
                                 mode=record.mode,
+                                health_check_enabled=record.health_check_enabled,
+                                health_check_path=record.health_check_path,
+                                health_check_tcp=record.health_check_tcp,
                                 sticky_enabled=record.sticky_enabled,
                                 sticky_type=record.sticky_type,
                             )
@@ -212,9 +215,6 @@ def manage_haproxy_sections():
                                     port=server.port,
                                     maxconn=server.maxconn,
                                     enabled=False,
-                                    health_check_enabled=server.health_check_enabled,
-                                    health_check_path=server.health_check_path,
-                                    health_check_tcp=server.health_check_tcp,
                                 ))
                         db.session.add(clone)
                         db.session.commit()
