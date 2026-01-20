@@ -334,6 +334,22 @@ textarea:focus {
   margin-bottom: 0;
 }
 
+.backend-block {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--surface-2);
+}
+
+.backend-servers {
+  margin-top: 8px;
+}
+
+.backend-headers {
+  margin-top: 8px;
+}
+
 .btn {
   border-radius: 12px;
   font-weight: 600;

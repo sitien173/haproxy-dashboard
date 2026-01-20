@@ -77,12 +77,20 @@
             <label for="frontend_name">Frontend Name:</label>
             <input type="text" class="form-control" name="frontend_name" value="{{ fd.frontend_name }}" {% if backend_only %}disabled{% endif %} required>
         </div>
-
         <div class="form-group">
-            <label for="domain_name">Domain / Hostname:</label>
-            <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com" value="{{ fd.domain_name }}" {% if backend_only %}disabled{% endif %} required>
-            <small class="text-muted">Shared listeners: HTTP :80 and HTTPS :443.</small>
+            <label for="frontend_ip">Bind IP:</label>
+            <input type="text" class="form-control" name="frontend_ip" placeholder="0.0.0.0" value="{{ fd.frontend_ip }}" {% if backend_only %}disabled{% endif %}>
         </div>
+        <div class="form-group">
+            <label for="frontend_port">Bind Port:</label>
+            <input type="text" class="form-control" name="frontend_port" placeholder="80" value="{{ fd.frontend_port }}" {% if backend_only %}disabled{% endif %}>
+        </div>
+    </div>
+
+    <div class="form-group" id="domain_fields" style="display: none;">
+        <label for="domain_name">Domain / Hostname:</label>
+        <input type="text" id="domain_name" class="form-control" name="domain_name" placeholder="example.com" value="{{ fd.domain_name }}" {% if backend_only %}disabled{% endif %}>
+        <small class="text-muted">Required for SSL certificates and host-based routing.</small>
     </div>
 
     <!-- Checkbox for SSL Certificate -->
@@ -186,47 +194,137 @@
         <label class="form-check-label" for="webshells_check"><i style="margin: 8px;" class="fas fa-shield-alt"></i>Activate Webshells Protection</label>
     </div>
 
-    <div class="form-check" style="margin-top: 8px;">
-        <input type="checkbox" class="form-check-input" name="add_acl" id="add_acl" {% if fd.add_acl %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
-        <label style="margin-bottom: 10px;" class="form-check-label" for="add_acl"><i style="margin: 8px;" class="fas fa-user-lock"></i> Add ACL for Frontend</label>
+    <div class="section-title"><i style="margin-right: 8px;" class="fas fa-user-lock"></i>ACL rules</div>
+    <div class="section-subtitle">Add multiple ACL rules and route to a backend by name.</div>
+    <div id="acl_rows_container">
+        {% if fd.acls %}
+            {% for acl in fd.acls %}
+            <div class="form-row acl-row">
+                <div class="form-group">
+                    <label>ACL Name:</label>
+                    <input type="text" class="form-control acl-name" value="{{ acl.name }}">
+                </div>
+                <div class="form-group">
+                    <label>ACL Action:</label>
+                    <input type="text" class="form-control acl-action" value="{{ acl.action }}">
+                </div>
+                <div class="form-group">
+                    <label>Backend Name:</label>
+                    <input type="text" class="form-control acl-backend" value="{{ acl.backend_name }}">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeAclRow(this)">Remove</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="form-row acl-row">
+                <div class="form-group">
+                    <label>ACL Name:</label>
+                    <input type="text" class="form-control acl-name" placeholder="acl_name">
+                </div>
+                <div class="form-group">
+                    <label>ACL Action:</label>
+                    <input type="text" class="form-control acl-action" placeholder="hdr(host) -i example.com">
+                </div>
+                <div class="form-group">
+                    <label>Backend Name:</label>
+                    <input type="text" class="form-control acl-backend" placeholder="backend_name">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeAclRow(this)">Remove</button>
+                </div>
+            </div>
+        {% endif %}
     </div>
+    <div style="margin-top: 12px;">
+        <button type="button" class="btn btn-outline-secondary" onclick="addAclRow()">+ Add ACL</button>
+    </div>
+    <input type="hidden" id="acl_payload" name="acl_payload">
 
-    <div class="form-group" id="acl_fields" style="display: none; padding-bottom: 20px;">
-        <label for="acl">ACL:</label>
-        <input type="text" class="form-control" name="acl" placeholder="example: acl_name" value="{{ fd.acl }}" {% if backend_only %}disabled{% endif %}>
-        <label for="acl_action">ACL Action:</label>
-        <input type="text" class="form-control" name="acl_action" placeholder="example: hdr(host) -i test.com" value="{{ fd.acl_action }}" {% if backend_only %}disabled{% endif %}>
-        <label for="backend_name_acl">Backend Name:</label>
-        <input type="text" class="form-control" name="backend_name_acl" placeholder="example: somebackend" value="{{ fd.backend_name_acl }}" {% if backend_only %}disabled{% endif %}>
+    <div class="section-title"><i style="margin-right: 8px;" class="fas fa-ban"></i>Block sensitive paths</div>
+    <div class="section-subtitle">Add multiple path blocks with allowed IPs.</div>
+    <div id="forbidden_rows_container">
+        {% if fd.forbidden_paths %}
+            {% for rule in fd.forbidden_paths %}
+            <div class="form-row forbidden-row">
+                <div class="form-group">
+                    <label>ACL Name:</label>
+                    <input type="text" class="form-control forbidden-name" value="{{ rule.acl_name }}">
+                </div>
+                <div class="form-group">
+                    <label>Allowed IPs:</label>
+                    <input type="text" class="form-control forbidden-allowed" value="{{ rule.allowed_ip }}">
+                </div>
+                <div class="form-group">
+                    <label>Path:</label>
+                    <input type="text" class="form-control forbidden-path" value="{{ rule.path }}">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeForbiddenRow(this)">Remove</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="form-row forbidden-row">
+                <div class="form-group">
+                    <label>ACL Name:</label>
+                    <input type="text" class="form-control forbidden-name" placeholder="block_admin">
+                </div>
+                <div class="form-group">
+                    <label>Allowed IPs:</label>
+                    <input type="text" class="form-control forbidden-allowed" placeholder="192.168.1.2 192.168.1.3">
+                </div>
+                <div class="form-group">
+                    <label>Path:</label>
+                    <input type="text" class="form-control forbidden-path" placeholder="/admin">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeForbiddenRow(this)">Remove</button>
+                </div>
+            </div>
+        {% endif %}
     </div>
+    <div style="margin-top: 12px;">
+        <button type="button" class="btn btn-outline-secondary" onclick="addForbiddenRow()">+ Add Path Block</button>
+    </div>
+    <input type="hidden" id="forbidden_payload" name="forbidden_payload">
 
-    <div class="form-check" id="forbidden_acl_container" style="display: none; margin-top: 8px;">
-        <input type="checkbox" class="form-check-input" name="add_acl_path" id="add_acl_path" {% if fd.add_acl_path %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
-        <label style="margin-bottom: 10px;" class="form-check-label" for="add_acl_path"><i style="margin: 8px;" class="fas fa-ban"></i> Block Sensitive Path</label>
+    <div class="section-title"><i style="margin-right: 8px;" class="fas fa-arrow-circle-right"></i>Path redirects</div>
+    <div class="section-subtitle">Add multiple path-based redirects.</div>
+    <div id="redirect_rows_container">
+        {% if fd.redirect_rules %}
+            {% for rule in fd.redirect_rules %}
+            <div class="form-row redirect-row">
+                <div class="form-group">
+                    <label>Host Match:</label>
+                    <input type="text" class="form-control redirect-host" value="{{ rule.host_match }}">
+                </div>
+                <div class="form-group">
+                    <label>Root Path:</label>
+                    <input type="text" class="form-control redirect-root" value="{{ rule.root_path }}">
+                </div>
+                <div class="form-group">
+                    <label>Redirect To:</label>
+                    <input type="text" class="form-control redirect-to" value="{{ rule.redirect_to }}">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeRedirectRow(this)">Remove</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="form-row redirect-row">
+                <div class="form-group">
+                    <label>Host Match:</label>
+                    <input type="text" class="form-control redirect-host" placeholder="app.example.com">
+                </div>
+                <div class="form-group">
+                    <label>Root Path:</label>
+                    <input type="text" class="form-control redirect-root" placeholder="/">
+                </div>
+                <div class="form-group">
+                    <label>Redirect To:</label>
+                    <input type="text" class="form-control redirect-to" placeholder="/new-path">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeRedirectRow(this)">Remove</button>
+                </div>
+            </div>
+        {% endif %}
     </div>
-
-    <div class="form-group" id="forbidden_fields" style="display: none; padding-bottom: 20px;">
-        <label for="forbidden_name">ACL Name:</label>
-        <input type="text" class="form-control" name="forbidden_name" id="forbidden_name" value="{{ fd.forbidden_name }}" {% if backend_only %}disabled{% endif %}>
-        <label for="allowed_ip">Allowed IP Addresses(e.g: 192.168.3.13 193.168.3.14):</label>
-        <input type="text" class="form-control" name="allowed_ip" value="{{ fd.allowed_ip }}" {% if backend_only %}disabled{% endif %}>
-        <label for="forbidden_path">Path(e.g: /admin):</label>
-        <input type="text" class="form-control" name="forbidden_path" value="{{ fd.forbidden_path }}" {% if backend_only %}disabled{% endif %}>
+    <div style="margin-top: 12px;">
+        <button type="button" class="btn btn-outline-secondary" onclick="addRedirectRow()">+ Add Redirect</button>
     </div>
-
-    <div class="form-check" id="path_based_container" style="display: none; margin-top: 8px;">
-        <input type="checkbox" class="form-check-input" name="add_path_based" id="add_path_based" {% if fd.add_path_based %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
-        <label style="margin-bottom: 10px;" class="form-check-label" for="add_path_based"><i style="margin: 8px;" class="fas fa-arrow-circle-right"></i>Add Path Based Redirect</label>
-    </div>
-
-    <div class="form-group" id="base_redirect_fields" style="display: none; padding-bottom: 20px;">
-        <label for="redirect_domain_name">Domain to be redirected:</label>
-        <input type="text" class="form-control" name="redirect_domain_name" id="redirect_domain_name" placeholder="e.g: test2.com or test2.com:8888 (port matters incase of unusual ports)" value="{{ fd.redirect_domain_name }}" {% if backend_only %}disabled{% endif %}>
-        <label for="root_redirect">Root Path To Be Redirected:</label>
-        <input type="text" class="form-control" name="root_redirect" placeholder="e.g: /" value="{{ fd.root_redirect }}" {% if backend_only %}disabled{% endif %}>
-        <label for="redirect_to">Redirect To Path:</label>
-        <input type="text" class="form-control" name="redirect_to" placeholder="e.g: /test **this will redirect test2.com/ to test2.com/test**" value="{{ fd.redirect_to }}" {% if backend_only %}disabled{% endif %}>
-    </div>
+    <input type="hidden" id="redirect_payload" name="redirect_payload">
 
     <div style="margin-top: 8px; padding-bottom: 15px; display: none;" class="form-check" id="forward_for_container">
         <input type="checkbox" class="form-check-input" id="forward_for_check" name="forward_for_check" {% if fd.forward_for %}checked{% endif %} {% if backend_only %}disabled{% endif %}>
@@ -236,155 +334,401 @@
     </div>
 
     <div id="backend_container" class="card-surface">
-        <div class="section-title"><i style="margin-right: 8px;" class="fas fa-sitemap"></i>Backend server pool</div>
-        <div class="section-subtitle">Scale traffic across multiple instances with health checks and persistence.</div>
+        <div class="section-title"><i style="margin-right: 8px;" class="fas fa-sitemap"></i>Backend pools</div>
+        <div class="section-subtitle">Create multiple backend pools and choose a default.</div>
 
-            <!-- HTTP Health Check -->
-            <div class="form-group" id="health_check_container_http" style="display: none;">
-                <input type="checkbox" name="health_check" id="health_check" onchange="toggleHealthCheck()" {% if fd.health_check %}checked{% endif %}>
-                <label for="health_check">
-                    <i style="margin: 8px;" class="fas fa-heartbeat"></i>
-                    Enable Health Check <strong>(HTTP mode only)</strong>
-                </label>
-            </div>
-
-            <div class="form-group" id="health_check_field" style="display: none;">
-                <label for="health_check_link">Health Check URL (e.g: your-website.com/health.html):</label>
-                <input type="text" class="form-control" name="health_check_link" value="{{ fd.health_check_link }}">
-            </div>
-
-            <!-- TCP Health Check -->
-            <div class="form-group" id="health_check_container_tcp" style="display: none;">
-                <input type="checkbox" name="health_check2" id="health_check2" onchange="toggleHealthCheck2()" {% if fd.health_check_tcp %}checked{% endif %}>
-                <label for="health_check2">
-                    <i style="margin: 8px;" class="fas fa-heartbeat"></i>
-                    Enable Health Check <strong>(TCP mode)</strong>
-                </label>
-            </div>
-
-            <!-- Sticky Session -->
-            <div class="form-group">
-                <input type="checkbox" name="sticky_session" id="sticky_session" onclick="toggleStickySession()" {% if fd.sticky_session %}checked{% endif %}>
-                <label for="sticky_session"><i style="margin: 8px;" class="fas fa-link"></i> Enable Sticky Session</label>
-            </div>
-
-            <div class="form-group" id="sticky_session_field" style="display: none;">
-                <label for="sticky_session_type">Session Persistence Type:</label>
-                <select class="form-control" name="sticky_session_type">
-                    <option value="cookie" {% if fd.sticky_session_type == 'cookie' %}selected{% endif %}>Cookie SERVERID</option>
-                    <option value="stick-table" {% if fd.sticky_session_type == 'stick-table' %}selected{% endif %}>Stick-Table ip</option>
-                </select>
-            </div>
-
-            <!-- Custom Header -->
-            <div class="form-group">
-                <input type="checkbox" name="add_header" id="add_header" onclick="toggleCustomHeader()" {% if fd.add_header %}checked{% endif %}>
-                <label for="add_header"><i style="margin: 8px;" class="fas fa-reply"></i> Add Custom Header</label>
-            </div>
-
-            <div class="form-group" id="header_field" style="display: none;">
-                <label for="header_name">Header Name:</label>
-                <input type="text" class="form-control" name="header_name" placeholder="e.g: X-Client-IP" value="{{ fd.header_name }}">
-                <label for="header_value">Header Value:</label>
-                <input type="text" class="form-control" name="header_value" placeholder="e.g: test" value="{{ fd.header_value }}">
-            </div>
-
-            <div class="form-group">
-                <label for="backend_name">Backend Name:</label>
-                <input type="text" class="form-control" name="backend_name" value="{{ fd.backend_name }}" required>
-            </div>
-
-            <!-- Backend Servers Section -->
-            <div id="backend_servers_container">
-                {% if fd.backend_servers %}
-                    {% for server in fd.backend_servers %}
-                    <div class="form-row backend-server-row">
-                        <div class="form-group">
-                            <label for="name{{ loop.index }}">Backend Server Name:</label>
-                            <input type="text" id="name{{ loop.index }}" class="form-control" name="backend_server_names[]" placeholder="server{{ loop.index }}" value="{{ server.name }}" required>
+        <div id="backend_blocks_container">
+            {% set backend_blocks = fd.backend_blocks if fd.backend_blocks else [] %}
+            {% if backend_blocks %}
+                {% for block in backend_blocks %}
+                <div class="backend-block" data-index="{{ loop.index0 }}">
+                    <div class="table-header">
+                        <div>
+                            <div class="section-title">Backend {{ loop.index }}</div>
+                            <div class="section-subtitle">Name + health, sticky, and server targets.</div>
                         </div>
-                        <div class="form-group">
-                            <label for="ip{{ loop.index }}">Backend Server IP:</label>
-                            <input type="text" id="ip{{ loop.index }}" class="form-control" name="backend_server_ips[]" value="{{ server.ip }}" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="port{{ loop.index }}">Backend Server Port:</label>
-                            <input type="number" id="port{{ loop.index }}" class="form-control" name="backend_server_ports[]" value="{{ server.port }}" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="maxconn{{ loop.index }}">MaxConn:</label>
-                            <input type="number" id="maxconn{{ loop.index }}" class="form-control" name="backend_server_maxconns[]" value="{{ server.maxconn }}">
-                            {% if loop.index > 1 %}
-                            <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeBackendServer(this)">Remove</button>
-                            {% endif %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="default_backend_index" value="{{ loop.index0 }}" {% if block.is_default %}checked{% endif %}>
+                            <label class="form-check-label">Default</label>
                         </div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                <!-- Initial Backend Server Row -->
-                <div class="form-row backend-server-row">
-                    <div class="form-group">
-                        <label for="name1">Backend Server Name:</label>
-                        <input type="text" id="name1" class="form-control" name="backend_server_names[]" placeholder="server1" required>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Backend Name:</label>
+                            <input type="text" class="form-control backend-name" value="{{ block.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mode:</label>
+                            <select class="form-control backend-mode">
+                                <option value="http" {% if block.mode == 'http' %}selected{% endif %}>HTTP</option>
+                                <option value="tcp" {% if block.mode == 'tcp' %}selected{% endif %}>TCP</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input backend-sticky-session" type="checkbox" {% if block.sticky_session %}checked{% endif %}>
+                                <label class="form-check-label">Sticky Session</label>
+                            </div>
+                            <select class="form-control backend-sticky-type">
+                                <option value="cookie" {% if block.sticky_session_type == 'cookie' %}selected{% endif %}>Cookie</option>
+                                <option value="stick-table" {% if block.sticky_session_type == 'stick-table' %}selected{% endif %}>Stick-table</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="ip1">Backend Server IP:</label>
-                        <input type="text" id="ip1" class="form-control" name="backend_server_ips[]" required>
+
+                    <div class="section-title">Custom headers</div>
+                    <div class="backend-headers">
+                        {% if block.headers %}
+                            {% for header in block.headers %}
+                            <div class="form-row backend-header-row">
+                                <div class="form-group">
+                                    <label>Header Name:</label>
+                                    <input type="text" class="form-control header-name" value="{{ header.name }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Header Value:</label>
+                                    <input type="text" class="form-control header-value" value="{{ header.value }}">
+                                </div>
+                                <div class="form-group">
+                                    <div class="form-check" style="margin-top: 8px;">
+                                        <input class="form-check-input header-enabled" type="checkbox" {% if header.enabled %}checked{% endif %}>
+                                        <label class="form-check-label">Enabled</label>
+                                    </div>
+                                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeHeaderRow(this)">Remove</button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="form-row backend-header-row">
+                                <div class="form-group">
+                                    <label>Header Name:</label>
+                                    <input type="text" class="form-control header-name" placeholder="X-Forwarded-Host">
+                                </div>
+                                <div class="form-group">
+                                    <label>Header Value:</label>
+                                    <input type="text" class="form-control header-value" placeholder="example.com">
+                                </div>
+                                <div class="form-group">
+                                    <div class="form-check" style="margin-top: 8px;">
+                                        <input class="form-check-input header-enabled" type="checkbox" checked>
+                                        <label class="form-check-label">Enabled</label>
+                                    </div>
+                                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeHeaderRow(this)">Remove</button>
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
-                    <div class="form-group">
-                        <label for="port1">Backend Server Port:</label>
-                        <input type="number" id="port1" class="form-control" name="backend_server_ports[]" required>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="addHeaderRow(this)">+ Add Header</button>
                     </div>
-                    <div class="form-group">
-                        <label for="maxconn1">MaxConn:</label>
-                        <input type="number" id="maxconn1" class="form-control" name="backend_server_maxconns[]">
+
+                    <div class="section-title">Servers</div>
+                    <div class="backend-servers">
+                        {% for server in block.servers %}
+                        <div class="form-row backend-server-row">
+                            <div class="form-group">
+                                <label>Server Name:</label>
+                                <input type="text" class="form-control server-name" value="{{ server.name }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>IP:</label>
+                                <input type="text" class="form-control server-ip" value="{{ server.ip }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Port:</label>
+                                <input type="number" class="form-control server-port" value="{{ server.port }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>MaxConn:</label>
+                                <input type="number" class="form-control server-maxconn" value="{{ server.maxconn }}">
+                                <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeBackendServer(this)">Remove</button>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input class="form-check-input server-health-check" type="checkbox" {% if server.health_check %}checked{% endif %}>
+                                    <label class="form-check-label">HTTP Check</label>
+                                </div>
+                                <input type="text" class="form-control server-health-path" placeholder="/health" value="{{ server.health_check_path }}">
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input class="form-check-input server-health-tcp" type="checkbox" {% if server.health_check_tcp %}checked{% endif %}>
+                                    <label class="form-check-label">TCP Check</label>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="addBackendServer(this)">+ Add Server</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="removeBackendBlock(this)">Remove Backend</button>
                     </div>
                 </div>
-                {% endif %}
-            </div>
-            <input type="hidden" id="backend_servers_payload" name="backend_servers_payload">
+                {% endfor %}
+            {% else %}
+                <div class="backend-block" data-index="0">
+                    <div class="table-header">
+                        <div>
+                            <div class="section-title">Backend 1</div>
+                            <div class="section-subtitle">Name + health, sticky, and server targets.</div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="default_backend_index" value="0" checked>
+                            <label class="form-check-label">Default</label>
+                        </div>
+                    </div>
 
-            <div style="margin-top: 12px;">
-                <button type="button" class="btn btn-outline-secondary" onclick="addBackendServer()">+ Add Backend Server</button>
-                <input type="submit" id="success_btn" class="btn btn-primary" value="{{ 'Update' if form_mode != 'create' else 'Submit' }}">
-            </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Backend Name:</label>
+                            <input type="text" class="form-control backend-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mode:</label>
+                            <select class="form-control backend-mode">
+                                <option value="http" selected>HTTP</option>
+                                <option value="tcp">TCP</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input backend-sticky-session" type="checkbox">
+                                <label class="form-check-label">Sticky Session</label>
+                            </div>
+                            <select class="form-control backend-sticky-type">
+                                <option value="cookie" selected>Cookie</option>
+                                <option value="stick-table">Stick-table</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Custom headers</div>
+                    <div class="backend-headers">
+                        <div class="form-row backend-header-row">
+                            <div class="form-group">
+                                <label>Header Name:</label>
+                                <input type="text" class="form-control header-name" placeholder="X-Forwarded-Host">
+                            </div>
+                            <div class="form-group">
+                                <label>Header Value:</label>
+                                <input type="text" class="form-control header-value" placeholder="example.com">
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check" style="margin-top: 8px;">
+                                    <input class="form-check-input header-enabled" type="checkbox" checked>
+                                    <label class="form-check-label">Enabled</label>
+                                </div>
+                                <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeHeaderRow(this)">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="addHeaderRow(this)">+ Add Header</button>
+                    </div>
+
+                    <div class="section-title">Servers</div>
+                    <div class="backend-servers">
+                        <div class="form-row backend-server-row">
+                            <div class="form-group">
+                                <label>Server Name:</label>
+                                <input type="text" class="form-control server-name" placeholder="server1" required>
+                            </div>
+                            <div class="form-group">
+                                <label>IP:</label>
+                                <input type="text" class="form-control server-ip" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Port:</label>
+                                <input type="number" class="form-control server-port" required>
+                            </div>
+                            <div class="form-group">
+                                <label>MaxConn:</label>
+                                <input type="number" class="form-control server-maxconn">
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input class="form-check-input server-health-check" type="checkbox">
+                                    <label class="form-check-label">HTTP Check</label>
+                                </div>
+                                <input type="text" class="form-control server-health-path" placeholder="/health">
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input class="form-check-input server-health-tcp" type="checkbox">
+                                    <label class="form-check-label">TCP Check</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="addBackendServer(this)">+ Add Server</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="removeBackendBlock(this)">Remove Backend</button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 12px;">
+            <button type="button" class="btn btn-outline-secondary" onclick="addBackendBlock()">+ Add Backend Block</button>
+            <input type="submit" id="success_btn" class="btn btn-primary" value="{{ 'Update' if form_mode != 'create' else 'Submit' }}">
+        </div>
+        <input type="hidden" id="backend_blocks_payload" name="backend_blocks_payload">
     </div>
 
     </form>
 
     <script>
-        // Function to add a new backend server row
-        let serverCount = {{ fd.backend_servers|length if fd.backend_servers else 1 }};
+        function addBackendBlock() {
+            const container = document.getElementById('backend_blocks_container');
+            const index = container.querySelectorAll('.backend-block').length;
+            const block = document.createElement('div');
+            block.classList.add('backend-block');
+            block.dataset.index = index;
+            block.innerHTML = `
+                <div class="table-header">
+                    <div>
+                        <div class="section-title">Backend ${index + 1}</div>
+                        <div class="section-subtitle">Name + health, sticky, and server targets.</div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="default_backend_index" value="${index}">
+                        <label class="form-check-label">Default</label>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Backend Name:</label>
+                        <input type="text" class="form-control backend-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mode:</label>
+                        <select class="form-control backend-mode">
+                            <option value="http" selected>HTTP</option>
+                            <option value="tcp">TCP</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input backend-sticky-session" type="checkbox">
+                            <label class="form-check-label">Sticky Session</label>
+                        </div>
+                        <select class="form-control backend-sticky-type">
+                            <option value="cookie" selected>Cookie</option>
+                            <option value="stick-table">Stick-table</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="section-title">Custom headers</div>
+                <div class="backend-headers">
+                    <div class="form-row backend-header-row">
+                        <div class="form-group">
+                            <label>Header Name:</label>
+                            <input type="text" class="form-control header-name" placeholder="X-Forwarded-Host">
+                        </div>
+                        <div class="form-group">
+                            <label>Header Value:</label>
+                            <input type="text" class="form-control header-value" placeholder="example.com">
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check" style="margin-top: 8px;">
+                                <input class="form-check-input header-enabled" type="checkbox" checked>
+                                <label class="form-check-label">Enabled</label>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeHeaderRow(this)">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <button type="button" class="btn btn-outline-secondary" onclick="addHeaderRow(this)">+ Add Header</button>
+                </div>
+                <div class="section-title">Servers</div>
+                <div class="backend-servers">
+                    <div class="form-row backend-server-row">
+                        <div class="form-group">
+                            <label>Server Name:</label>
+                            <input type="text" class="form-control server-name" placeholder="server1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>IP:</label>
+                            <input type="text" class="form-control server-ip" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Port:</label>
+                            <input type="number" class="form-control server-port" required>
+                        </div>
+                        <div class="form-group">
+                            <label>MaxConn:</label>
+                            <input type="number" class="form-control server-maxconn">
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input server-health-check" type="checkbox">
+                                <label class="form-check-label">HTTP Check</label>
+                            </div>
+                            <input type="text" class="form-control server-health-path" placeholder="/health">
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input server-health-tcp" type="checkbox">
+                                <label class="form-check-label">TCP Check</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <button type="button" class="btn btn-outline-secondary" onclick="addBackendServer(this)">+ Add Server</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="removeBackendBlock(this)">Remove Backend</button>
+                </div>
+            `;
+            container.appendChild(block);
+        }
 
-        function addBackendServer() {
-            serverCount++;
-            const container = document.getElementById('backend_servers_container');
+        function removeBackendBlock(button) {
+            const block = button.closest('.backend-block');
+            const container = document.getElementById('backend_blocks_container');
+            if (container.querySelectorAll('.backend-block').length <= 1) {
+                alert('You must have at least one backend block.');
+                return;
+            }
+            block.remove();
+        }
+
+        function addBackendServer(button) {
+            const block = button.closest('.backend-block');
+            const container = block.querySelector('.backend-servers');
             const row = document.createElement('div');
-            row.classList.add('form-row', 'backend-server-row', 'mt-2');
-
-            // Generate unique IDs
-            const nameId = `name${serverCount}`;
-            const ipId = `ip${serverCount}`;
-            const portId = `port${serverCount}`;
-            const maxconnId = `maxconn${serverCount}`;
-
+            row.classList.add('form-row', 'backend-server-row');
             row.innerHTML = `
                 <div class="form-group">
-                    <label for="${nameId}">Backend Server Name:</label>
-                    <input type="text" id="${nameId}" class="form-control" name="backend_server_names[]" placeholder="server${serverCount}" required>
+                    <label>Server Name:</label>
+                    <input type="text" class="form-control server-name" required>
                 </div>
                 <div class="form-group">
-                    <label for="${ipId}">Backend Server IP:</label>
-                    <input type="text" id="${ipId}" class="form-control" name="backend_server_ips[]" required>
+                    <label>IP:</label>
+                    <input type="text" class="form-control server-ip" required>
                 </div>
                 <div class="form-group">
-                    <label for="${portId}">Backend Server Port:</label>
-                    <input type="number" id="${portId}" class="form-control" name="backend_server_ports[]" required>
+                    <label>Port:</label>
+                    <input type="number" class="form-control server-port" required>
                 </div>
                 <div class="form-group">
-                    <label for="${maxconnId}">MaxConn:</label>
-                    <input type="number" id="${maxconnId}" class="form-control" name="backend_server_maxconns[]">
+                    <label>MaxConn:</label>
+                    <input type="number" class="form-control server-maxconn">
                     <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeBackendServer(this)">Remove</button>
+                </div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input class="form-check-input server-health-check" type="checkbox">
+                        <label class="form-check-label">HTTP Check</label>
+                    </div>
+                    <input type="text" class="form-control server-health-path" placeholder="/health">
+                </div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input class="form-check-input server-health-tcp" type="checkbox">
+                        <label class="form-check-label">TCP Check</label>
+                    </div>
                 </div>
             `;
             container.appendChild(row);
@@ -392,83 +736,195 @@
 
         function removeBackendServer(button) {
             const row = button.closest('.backend-server-row');
-            if (document.querySelectorAll('.backend-server-row').length > 1) {
-                row.remove();
-            } else {
-                alert("You must have at least one backend server.");
+            const container = row.closest('.backend-servers');
+            if (container.querySelectorAll('.backend-server-row').length <= 1) {
+                alert('You must have at least one backend server.');
+                return;
             }
+            row.remove();
         }
 
-        function buildBackendServerPayload() {
-            const rows = document.querySelectorAll('.backend-server-row');
-            const servers = [];
-            rows.forEach((row, index) => {
-                const nameInput = row.querySelector('input[name="backend_server_names[]"]');
-                const ipInput = row.querySelector('input[name="backend_server_ips[]"]');
-                const portInput = row.querySelector('input[name="backend_server_ports[]"]');
-                const maxconnInput = row.querySelector('input[name="backend_server_maxconns[]"]');
-                const name = nameInput ? nameInput.value.trim() : '';
-                const ip = ipInput ? ipInput.value.trim() : '';
-                const port = portInput ? portInput.value.trim() : '';
-                const maxconn = maxconnInput ? maxconnInput.value.trim() : '';
-                servers.push({
-                    name: name || `server${index + 1}`,
-                    ip,
-                    port,
-                    maxconn,
+        function addAclRow() {
+            const container = document.getElementById('acl_rows_container');
+            const row = document.createElement('div');
+            row.classList.add('form-row', 'acl-row');
+            row.innerHTML = `
+                <div class="form-group">
+                    <label>ACL Name:</label>
+                    <input type="text" class="form-control acl-name" placeholder="acl_name">
+                </div>
+                <div class="form-group">
+                    <label>ACL Action:</label>
+                    <input type="text" class="form-control acl-action" placeholder="hdr(host) -i example.com">
+                </div>
+                <div class="form-group">
+                    <label>Backend Name:</label>
+                    <input type="text" class="form-control acl-backend" placeholder="backend_name">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeAclRow(this)">Remove</button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeAclRow(button) {
+            const row = button.closest('.acl-row');
+            row.remove();
+        }
+
+        function addForbiddenRow() {
+            const container = document.getElementById('forbidden_rows_container');
+            const row = document.createElement('div');
+            row.classList.add('form-row', 'forbidden-row');
+            row.innerHTML = `
+                <div class="form-group">
+                    <label>ACL Name:</label>
+                    <input type="text" class="form-control forbidden-name" placeholder="block_admin">
+                </div>
+                <div class="form-group">
+                    <label>Allowed IPs:</label>
+                    <input type="text" class="form-control forbidden-allowed" placeholder="192.168.1.2 192.168.1.3">
+                </div>
+                <div class="form-group">
+                    <label>Path:</label>
+                    <input type="text" class="form-control forbidden-path" placeholder="/admin">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeForbiddenRow(this)">Remove</button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeForbiddenRow(button) {
+            const row = button.closest('.forbidden-row');
+            row.remove();
+        }
+
+        function addRedirectRow() {
+            const container = document.getElementById('redirect_rows_container');
+            const row = document.createElement('div');
+            row.classList.add('form-row', 'redirect-row');
+            row.innerHTML = `
+                <div class="form-group">
+                    <label>Host Match:</label>
+                    <input type="text" class="form-control redirect-host" placeholder="app.example.com">
+                </div>
+                <div class="form-group">
+                    <label>Root Path:</label>
+                    <input type="text" class="form-control redirect-root" placeholder="/">
+                </div>
+                <div class="form-group">
+                    <label>Redirect To:</label>
+                    <input type="text" class="form-control redirect-to" placeholder="/new-path">
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeRedirectRow(this)">Remove</button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeRedirectRow(button) {
+            const row = button.closest('.redirect-row');
+            row.remove();
+        }
+
+        function addHeaderRow(button) {
+            const block = button.closest('.backend-block');
+            const container = block.querySelector('.backend-headers');
+            const row = document.createElement('div');
+            row.classList.add('form-row', 'backend-header-row');
+            row.innerHTML = `
+                <div class="form-group">
+                    <label>Header Name:</label>
+                    <input type="text" class="form-control header-name" placeholder="X-Forwarded-Host">
+                </div>
+                <div class="form-group">
+                    <label>Header Value:</label>
+                    <input type="text" class="form-control header-value" placeholder="example.com">
+                </div>
+                <div class="form-group">
+                    <div class="form-check" style="margin-top: 8px;">
+                        <input class="form-check-input header-enabled" type="checkbox" checked>
+                        <label class="form-check-label">Enabled</label>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeHeaderRow(this)">Remove</button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeHeaderRow(button) {
+            const row = button.closest('.backend-header-row');
+            row.remove();
+        }
+
+        function buildPayloads() {
+            const backendBlocks = [];
+            const radios = Array.from(document.querySelectorAll('input[name="default_backend_index"]'));
+            const defaultIndex = radios.findIndex((radio) => radio.checked);
+
+            document.querySelectorAll('.backend-block').forEach((block, index) => {
+                const headers = [];
+                block.querySelectorAll('.backend-header-row').forEach((row) => {
+                    const name = row.querySelector('.header-name')?.value.trim() || '';
+                    const value = row.querySelector('.header-value')?.value.trim() || '';
+                    const enabled = row.querySelector('.header-enabled')?.checked || false;
+                    if (name) {
+                        headers.push({ name, value, enabled });
+                    }
+                });
+                const servers = [];
+                block.querySelectorAll('.backend-server-row').forEach((row, serverIndex) => {
+                    const name = row.querySelector('.server-name')?.value.trim() || `server${serverIndex + 1}`;
+                    const ip = row.querySelector('.server-ip')?.value.trim() || '';
+                    const port = row.querySelector('.server-port')?.value.trim() || '';
+                    const maxconn = row.querySelector('.server-maxconn')?.value.trim() || '';
+                    const health_check = row.querySelector('.server-health-check')?.checked || false;
+                    const health_check_path = row.querySelector('.server-health-path')?.value.trim() || '';
+                    const health_check_tcp = row.querySelector('.server-health-tcp')?.checked || false;
+                    servers.push({ name, ip, port, maxconn, health_check, health_check_path, health_check_tcp });
+                });
+                backendBlocks.push({
+                    name: block.querySelector('.backend-name')?.value.trim() || '',
+                    mode: block.querySelector('.backend-mode')?.value || 'http',
+                    is_default: index === (defaultIndex === -1 ? 0 : defaultIndex),
+                    sticky_session: block.querySelector('.backend-sticky-session')?.checked || false,
+                    sticky_session_type: block.querySelector('.backend-sticky-type')?.value || 'cookie',
+                    headers,
+                    servers,
                 });
             });
 
-            const payloadInput = document.getElementById('backend_servers_payload');
-            if (payloadInput) {
-                payloadInput.value = JSON.stringify(servers);
-            }
+            const aclEntries = [];
+            document.querySelectorAll('.acl-row').forEach((row) => {
+                const name = row.querySelector('.acl-name')?.value.trim() || '';
+                const action = row.querySelector('.acl-action')?.value.trim() || '';
+                const backend_name = row.querySelector('.acl-backend')?.value.trim() || '';
+                aclEntries.push({ name, action, backend_name });
+            });
+
+            const forbiddenEntries = [];
+            document.querySelectorAll('.forbidden-row').forEach((row) => {
+                const acl_name = row.querySelector('.forbidden-name')?.value.trim() || '';
+                const allowed_ip = row.querySelector('.forbidden-allowed')?.value.trim() || '';
+                const path = row.querySelector('.forbidden-path')?.value.trim() || '';
+                forbiddenEntries.push({ acl_name, allowed_ip, path });
+            });
+
+            const redirectEntries = [];
+            document.querySelectorAll('.redirect-row').forEach((row) => {
+                const host_match = row.querySelector('.redirect-host')?.value.trim() || '';
+                const root_path = row.querySelector('.redirect-root')?.value.trim() || '';
+                const redirect_to = row.querySelector('.redirect-to')?.value.trim() || '';
+                redirectEntries.push({ host_match, root_path, redirect_to });
+            });
+
+            document.getElementById('backend_blocks_payload').value = JSON.stringify(backendBlocks);
+            document.getElementById('acl_payload').value = JSON.stringify(aclEntries);
+            document.getElementById('forbidden_payload').value = JSON.stringify(forbiddenEntries);
+            document.getElementById('redirect_payload').value = JSON.stringify(redirectEntries);
         }
 
         const backendForm = document.querySelector('form[action="/"]');
         if (backendForm) {
-            backendForm.addEventListener('submit', buildBackendServerPayload);
-        }
-
-        // Protocol change handler to show/hide health check options
-        document.getElementById('protocol').addEventListener('change', function() {
-            const protocol = this.value;
-            const httpHealthCheck = document.getElementById('health_check_container_http');
-            const tcpHealthCheck = document.getElementById('health_check_container_tcp');
-
-            if (protocol === 'http') {
-                httpHealthCheck.style.display = 'block';
-                tcpHealthCheck.style.display = 'none';
-            } else if (protocol === 'tcp') {
-                httpHealthCheck.style.display = 'none';
-                tcpHealthCheck.style.display = 'block';
-            } else {
-                httpHealthCheck.style.display = 'none';
-                tcpHealthCheck.style.display = 'none';
-            }
-        });
-
-        // Toggle functions (you'll need to implement these based on your existing JavaScript)
-        function toggleHealthCheck() {
-            const field = document.getElementById('health_check_field');
-            const checkbox = document.getElementById('health_check');
-            field.style.display = checkbox.checked ? 'block' : 'none';
-        }
-
-        function toggleHealthCheck2() {
-            // Implement TCP health check toggle if needed
-        }
-
-        function toggleStickySession() {
-            const field = document.getElementById('sticky_session_field');
-            const checkbox = document.getElementById('sticky_session');
-            field.style.display = checkbox.checked ? 'block' : 'none';
-        }
-
-        function toggleCustomHeader() {
-            const field = document.getElementById('header_field');
-            const checkbox = document.getElementById('add_header');
-            field.style.display = checkbox.checked ? 'block' : 'none';
+            backendForm.addEventListener('submit', buildPayloads);
         }
     </script>
 
@@ -487,94 +943,6 @@
         });
     </script>
 
-    <script>
-    // Function to toggle the sticky session field based on checkbox selection
-    function toggleCustomHeader() {
-        const CustomHeaderbox = document.getElementById('add_header');
-        const CustomHeaderField = document.getElementById('header_field');
-        if (CustomHeaderbox.checked) {
-            CustomHeaderField.style.display = 'block';
-        } else {
-           CustomHeaderField.style.display = 'none';
-        }
-    }
-
-    // Event listener to toggle the sticky session field when checkbox is clicked
-    document.getElementById('add_header').addEventListener('click', toggleCustomHeader);
-</script>
-
-
-    <script>
-    // Function to toggle the health check field based on the protocol selected
-function toggleHealthCheck() {
-    const healthCheckField = document.getElementById('health_check_field');
-    const healthCheckCheckbox = document.getElementById('health_check');
-
-    if (healthCheckCheckbox.checked) {
-        healthCheckField.style.display = 'block';
-    } else {
-        healthCheckField.style.display = 'none';
-    }
-}
-
-// Event listener to toggle the health check field when protocol changes
-document.querySelector('select[name="protocol"]').addEventListener('change', toggleHealthCheck);
-</script>
-
-
-<script>
-    function toggleHealthCheck2() {
-        const protocolSelect = document.getElementById('protocol');
-        const healthCheckContainer = document.getElementById('health_check_container_http');
-        const healthCheckContainer2 = document.getElementById('health_check_container_tcp');
-        if (!protocolSelect) {
-            return;
-        }
-        const protocol = protocolSelect.value;
-        if (healthCheckContainer) {
-            healthCheckContainer.style.display = protocol === 'http' ? 'block' : 'none';
-        }
-        if (healthCheckContainer2) {
-            healthCheckContainer2.style.display = protocol === 'tcp' ? 'block' : 'none';
-        }
-    }
-
-    document.getElementById('protocol').addEventListener('change', toggleHealthCheck2);
-</script>
-
-
-<script>
-    function toggleHealthCheck() {
-        const protocolSelect = document.getElementById('protocol');
-        const healthCheckField = document.getElementById('health_check_field');
-        const healthCheckCheckbox = document.getElementById('health_check');
-        if (!protocolSelect || !healthCheckField || !healthCheckCheckbox) {
-            return;
-        }
-        const protocol = protocolSelect.value;
-        healthCheckField.style.display = (protocol === 'http' && healthCheckCheckbox.checked) ? 'block' : 'none';
-    }
-
-    document.getElementById('protocol').addEventListener('change', toggleHealthCheck);
-</script>
-
-
-<script>
-    // Function to toggle the sticky session field based on checkbox selection
-    function toggleStickySession() {
-        const stickySessionCheckbox = document.getElementById('sticky_session');
-        const stickySessionField = document.getElementById('sticky_session_field');
-        if (stickySessionCheckbox.checked) {
-            stickySessionField.style.display = 'block';
-        } else {
-            stickySessionField.style.display = 'none';
-        }
-    }
-
-    // Event listener to toggle the sticky session field when checkbox is clicked
-    document.getElementById('sticky_session').addEventListener('click', toggleStickySession);
-</script>
-
  <script>
         // Function to toggle the visibility of ACL fields based on the checkbox
         const DosCheckbox = document.getElementById('add_dos');
@@ -585,20 +953,6 @@ document.querySelector('select[name="protocol"]').addEventListener('change', tog
                 DosFields.style.display = 'block';
             } else {
                 DosFields.style.display = 'none';
-            }
-        });
-    </script>
-
- <script>
-        // Function to toggle the visibility of ACL fields based on the checkbox
-        const aclCheckbox = document.getElementById('add_acl');
-        const aclFields = document.getElementById('acl_fields');
-
-        aclCheckbox.addEventListener('change', () => {
-            if (aclCheckbox.checked) {
-                aclFields.style.display = 'block';
-            } else {
-                aclFields.style.display = 'none';
             }
         });
     </script>
@@ -724,84 +1078,6 @@ document.getElementById('protocol').addEventListener('change', toggleForwardFor)
 </script>
 
     <script>
-    function toggleForbiddenCheck() {
-    const protocolSelect3 = document.getElementById('protocol');
-    const forbiddenContainer = document.getElementById('forbidden_acl_container');
-
-
-
-
-    if (protocolSelect3.value === 'http') {
-
-        forbiddenContainer.style.display = 'block';
-
-        }
-
-        else {
-        forbiddenContainer.style.display = 'none';
-        }
-
-}
-
-document.getElementById('protocol').addEventListener('change', toggleForbiddenCheck);
-</script>
-
-
-<script>
-    function PathBasedToggle() {
-    const protocolSelect7 = document.getElementById('protocol');
-    const path_based_container = document.getElementById('path_based_container');
-
-
-
-
-    if (protocolSelect7.value === 'http') {
-
-        path_based_container.style.display = 'block';
-
-        }
-
-        else {
-        path_based_container.style.display = 'none';
-        }
-
-}
-
-document.getElementById('protocol').addEventListener('change', PathBasedToggle);
-</script>
-
-
-
-    <script>
-        // Function to toggle the visibility of based path redirect fields based on the checkbox
-        const add_path_based_checkbox = document.getElementById('add_path_based');
-        const redirect_path_fields = document.getElementById('base_redirect_fields');
-
-        add_path_based_checkbox.addEventListener('change', () => {
-            if (add_path_based_checkbox.checked) {
-                redirect_path_fields.style.display = 'block';
-            } else {
-                redirect_path_fields.style.display = 'none';
-            }
-        });
-    </script>
-
-
-     <script>
-        // Function to toggle the visibility of ACL forbidden paths fields based on the checkbox
-        const aclCheckbox2 = document.getElementById('add_acl_path');
-        const aclFields2 = document.getElementById('forbidden_fields');
-
-        aclCheckbox2.addEventListener('change', () => {
-            if (aclCheckbox2.checked) {
-                aclFields2.style.display = 'block';
-            } else {
-                aclFields2.style.display = 'none';
-            }
-        });
-    </script>
-
-    <script>
         const sslCheckbox = document.getElementById('ssl_checkbox');
         const sslFields = document.getElementById('ssl_fields');
         const sslModeSelect = document.getElementById('ssl_mode');
@@ -809,6 +1085,8 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
         const existingFields = document.getElementById('existing_cert_fields');
         const manualCertFields = document.getElementById('manual_cert_fields');
         const certSelect = document.getElementById('ssl_cert_path_select');
+        const domainFields = document.getElementById('domain_fields');
+        const domainInput = document.getElementById('domain_name');
 
         function toggleManualCert() {
             if (!manualCertFields || !certSelect) {
@@ -839,29 +1117,31 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
             toggleSslMode();
         }
 
+        function toggleDomainFields() {
+            if (!domainFields || !domainInput) {
+                return;
+            }
+            const hasValue = domainInput.value.trim().length > 0;
+            domainFields.style.display = sslCheckbox.checked || hasValue ? 'block' : 'none';
+            domainInput.required = sslCheckbox.checked;
+        }
+
         sslCheckbox.addEventListener('change', toggleSslFields);
+        sslCheckbox.addEventListener('change', toggleDomainFields);
         if (sslModeSelect) {
             sslModeSelect.addEventListener('change', toggleSslMode);
         }
         if (certSelect) {
             certSelect.addEventListener('change', toggleManualCert);
         }
+        if (domainInput) {
+            domainInput.addEventListener('input', toggleDomainFields);
+        }
         toggleSslFields();
+        toggleDomainFields();
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (typeof toggleHealthCheck === 'function') {
-                toggleHealthCheck();
-            }
-            if (typeof toggleHealthCheck2 === 'function') {
-                toggleHealthCheck2();
-            }
-            if (typeof toggleStickySession === 'function') {
-                toggleStickySession();
-            }
-            if (typeof toggleCustomHeader === 'function') {
-                toggleCustomHeader();
-            }
             if (typeof toggleSqlInjection === 'function') {
                 toggleSqlInjection();
             }
@@ -871,11 +1151,11 @@ document.getElementById('protocol').addEventListener('change', PathBasedToggle);
             if (typeof toggleForwardFor === 'function') {
                 toggleForwardFor();
             }
-            if (typeof toggleForbiddenCheck === 'function') {
-                toggleForbiddenCheck();
+            if (typeof Webshells === 'function') {
+                Webshells();
             }
-            if (typeof PathBasedToggle === 'function') {
-                PathBasedToggle();
+            if (typeof RemoteUploads === 'function') {
+                RemoteUploads();
             }
         });
     </script>

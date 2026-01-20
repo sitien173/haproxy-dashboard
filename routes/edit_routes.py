@@ -2,7 +2,7 @@ from flask import Blueprint, redirect, render_template, request, url_for
 import subprocess
 from auth.auth_middleware import requires_auth  # Updated import
 from db import db
-from db.models import BackendPool, ConfigBase, Certificate, Frontend, FrontendAcl
+from db.models import BackendHeader, BackendPool, ConfigBase, Certificate, Frontend, FrontendAcl, FrontendBackend
 from utils.haproxy_config import DEFAULT_BASE_CONFIG, write_haproxy_config
 from utils.acme_utils import _get_cert_enddate, _get_cert_issuer, list_installed_certificates, renew_certificate
 
@@ -82,7 +82,6 @@ def manage_haproxy_sections():
                 if not record:
                     message = f"{target_type.title()} '{target_name}' not found."
                 else:
-                    backend = record.backend if target_type == 'frontend' else record
                     if action == 'clone':
                         base_name = f"{record.name}-copy"
                         suffix = 1
@@ -93,9 +92,13 @@ def manage_haproxy_sections():
                             new_name = f"{base_name}-{suffix}"
 
                         if target_type == 'frontend':
-                            cloned_backend = None
-                            if backend:
-                                backend_base = f"{backend.name}-copy"
+                            cloned_backends = []
+                            backend_name_map = {}
+                            for link in record.backend_links:
+                                source_backend = link.backend
+                                if not source_backend:
+                                    continue
+                                backend_base = f"{source_backend.name}-copy"
                                 backend_suffix = 1
                                 backend_name = backend_base
                                 while BackendPool.query.filter_by(name=backend_name).first():
@@ -104,26 +107,39 @@ def manage_haproxy_sections():
                                 cloned_backend = BackendPool(
                                     name=backend_name,
                                     enabled=False,
-                                    mode=backend.mode,
-                                    health_check_enabled=backend.health_check_enabled,
-                                    health_check_path=backend.health_check_path,
-                                    health_check_tcp=backend.health_check_tcp,
-                                    sticky_enabled=backend.sticky_enabled,
-                                    sticky_type=backend.sticky_type,
-                                    add_header_enabled=backend.add_header_enabled,
-                                    header_name=backend.header_name,
-                                    header_value=backend.header_value,
+                                    mode=source_backend.mode,
+                                    sticky_enabled=source_backend.sticky_enabled,
+                                    sticky_type=source_backend.sticky_type,
                                 )
-                                for server in backend.servers:
+                                for header in source_backend.headers:
+                                    cloned_backend.headers.append(BackendHeader(
+                                        name=header.name,
+                                        value=header.value,
+                                        enabled=header.enabled,
+                                    ))
+                                for server in source_backend.servers:
                                     cloned_backend.servers.append(server.__class__(
                                         name=server.name,
                                         ip=server.ip,
                                         port=server.port,
                                         maxconn=server.maxconn,
                                         enabled=False,
+                                        health_check_enabled=server.health_check_enabled,
+                                        health_check_path=server.health_check_path,
+                                        health_check_tcp=server.health_check_tcp,
                                     ))
                                 db.session.add(cloned_backend)
                                 db.session.flush()
+                                cloned_backends.append((cloned_backend, link.is_default))
+                                backend_name_map[source_backend.name] = cloned_backend.id
+
+                            default_backend_id = None
+                            for backend_item, is_default in cloned_backends:
+                                if is_default:
+                                    default_backend_id = backend_item.id
+                                    break
+                            if not default_backend_id and cloned_backends:
+                                default_backend_id = cloned_backends[0][0].id
 
                             clone = Frontend(
                                 name=new_name,
@@ -131,7 +147,7 @@ def manage_haproxy_sections():
                                 bind_port=record.bind_port,
                                 mode=record.mode,
                                 lb_method=record.lb_method,
-                                default_backend_id=cloned_backend.id if cloned_backend else None,
+                                default_backend_id=default_backend_id,
                                 enabled=False,
                                 use_ssl=record.use_ssl,
                                 ssl_cert_id=record.ssl_cert_id,
@@ -146,41 +162,49 @@ def manage_haproxy_sections():
                                 remote_upload_enabled=record.remote_upload_enabled,
                                 webshells_enabled=record.webshells_enabled,
                             )
-                            if record.acl:
-                                acl_backend_id = record.acl.backend_id
-                                if cloned_backend and record.acl.backend_id == record.default_backend_id:
-                                    acl_backend_id = cloned_backend.id
-                                clone.acl = record.acl.__class__(
-                                    name=record.acl.name,
-                                    action=record.acl.action,
-                                    backend_id=acl_backend_id,
-                                )
-                            if record.forbidden_path:
-                                clone.forbidden_path = record.forbidden_path.__class__(
-                                    acl_name=record.forbidden_path.acl_name,
-                                    allowed_ip=record.forbidden_path.allowed_ip,
-                                    path=record.forbidden_path.path,
-                                )
-                            if record.redirect_rule:
-                                clone.redirect_rule = record.redirect_rule.__class__(
-                                    host_match=record.redirect_rule.host_match,
-                                    root_path=record.redirect_rule.root_path,
-                                    redirect_to=record.redirect_rule.redirect_to,
-                                )
+                            db.session.add(clone)
+                            db.session.flush()
+
+                            for backend_item, is_default in cloned_backends:
+                                db.session.add(FrontendBackend(
+                                    frontend_id=clone.id,
+                                    backend_id=backend_item.id,
+                                    is_default=is_default,
+                                ))
+
+                            for acl in record.acls:
+                                backend_id = backend_name_map.get(acl.backend.name) if acl.backend else None
+                                clone.acls.append(acl.__class__(
+                                    name=acl.name,
+                                    action=acl.action,
+                                    backend_id=backend_id,
+                                ))
+                            for forbidden in record.forbidden_paths:
+                                clone.forbidden_paths.append(forbidden.__class__(
+                                    acl_name=forbidden.acl_name,
+                                    allowed_ip=forbidden.allowed_ip,
+                                    path=forbidden.path,
+                                ))
+                            for redirect_rule in record.redirect_rules:
+                                clone.redirect_rules.append(redirect_rule.__class__(
+                                    host_match=redirect_rule.host_match,
+                                    root_path=redirect_rule.root_path,
+                                    redirect_to=redirect_rule.redirect_to,
+                                ))
                         else:
                             clone = BackendPool(
                                 name=new_name,
                                 enabled=False,
                                 mode=record.mode,
-                                health_check_enabled=record.health_check_enabled,
-                                health_check_path=record.health_check_path,
-                                health_check_tcp=record.health_check_tcp,
                                 sticky_enabled=record.sticky_enabled,
                                 sticky_type=record.sticky_type,
-                                add_header_enabled=record.add_header_enabled,
-                                header_name=record.header_name,
-                                header_value=record.header_value,
                             )
+                            for header in record.headers:
+                                clone.headers.append(BackendHeader(
+                                    name=header.name,
+                                    value=header.value,
+                                    enabled=header.enabled,
+                                ))
                             for server in record.servers:
                                 clone.servers.append(server.__class__(
                                     name=server.name,
@@ -188,6 +212,9 @@ def manage_haproxy_sections():
                                     port=server.port,
                                     maxconn=server.maxconn,
                                     enabled=False,
+                                    health_check_enabled=server.health_check_enabled,
+                                    health_check_path=server.health_check_path,
+                                    health_check_tcp=server.health_check_tcp,
                                 ))
                         db.session.add(clone)
                         db.session.commit()
@@ -202,17 +229,13 @@ def manage_haproxy_sections():
                                     Frontend.domain_name == record.domain_name,
                                     Frontend.id != record.id,
                                 ).first()
-                            backend_ok = True
-                            if record.default_backend_id:
-                                backend_ok = BackendPool.query.filter_by(id=record.default_backend_id, enabled=True).first() is not None
                             if conflict:
                                 message = f"Domain {record.domain_name} is already enabled on '{conflict.name}'."
-                            elif not backend_ok:
-                                message = "Enable the backend before enabling this frontend."
                             else:
                                 record.enabled = True
-                                if backend:
-                                    backend.enabled = True
+                                for link in record.backend_links:
+                                    if link.backend:
+                                        link.backend.enabled = True
                                 db.session.commit()
                                 write_haproxy_config()
                                 message = f"Frontend '{record.name}' enabled."
@@ -223,12 +246,11 @@ def manage_haproxy_sections():
                             message = f"Backend '{record.name}' enabled."
                     elif action == 'disable':
                         if target_type == 'backend':
-                            in_use = Frontend.query.filter(
-                                Frontend.enabled.is_(True),
-                                Frontend.default_backend_id == record.id,
+                            in_use = FrontendBackend.query.filter(
+                                FrontendBackend.backend_id == record.id,
                             ).first()
                             if in_use:
-                                message = f"Disable frontend '{in_use.name}' before disabling this backend."
+                                message = "Disable or delete the frontend using this backend before disabling it."
                             else:
                                 record.enabled = False
                                 db.session.commit()
@@ -236,33 +258,35 @@ def manage_haproxy_sections():
                                 message = f"Backend '{record.name}' disabled."
                         else:
                             record.enabled = False
-                            if backend:
-                                in_use = Frontend.query.filter(
-                                    Frontend.enabled.is_(True),
-                                    Frontend.default_backend_id == backend.id,
-                                    Frontend.id != record.id,
+                            for link in record.backend_links:
+                                backend_record = link.backend
+                                if not backend_record:
+                                    continue
+                                in_use = FrontendBackend.query.filter(
+                                    FrontendBackend.backend_id == backend_record.id,
+                                    FrontendBackend.frontend_id != record.id,
                                 ).first()
-                                in_acl = FrontendAcl.query.filter_by(backend_id=backend.id).first()
+                                in_acl = FrontendAcl.query.filter_by(backend_id=backend_record.id).first()
                                 if not in_use and not in_acl:
-                                    backend.enabled = False
+                                    backend_record.enabled = False
                             db.session.commit()
                             write_haproxy_config()
                             message = f"Frontend '{record.name}' disabled."
                     elif action == 'delete':
                         if target_type == 'backend':
-                            in_use = Frontend.query.filter_by(default_backend_id=record.id).first()
+                            in_use = FrontendBackend.query.filter_by(backend_id=record.id).first()
                             if in_use:
-                                message = f"Delete or repoint frontend '{in_use.name}' before deleting this backend."
+                                message = "Delete or repoint the frontend using this backend before deleting it."
                             else:
                                 db.session.delete(record)
                                 db.session.commit()
                                 write_haproxy_config()
                                 message = f"Backend '{target_name}' deleted."
                         else:
-                            backend_id = record.default_backend_id
+                            backend_ids = [link.backend_id for link in record.backend_links]
                             db.session.delete(record)
-                            if backend_id:
-                                in_use = Frontend.query.filter_by(default_backend_id=backend_id).first()
+                            for backend_id in backend_ids:
+                                in_use = FrontendBackend.query.filter_by(backend_id=backend_id).first()
                                 in_acl = FrontendAcl.query.filter_by(backend_id=backend_id).first()
                                 if not in_use and not in_acl:
                                     backend_record = BackendPool.query.filter_by(id=backend_id).first()
@@ -277,7 +301,11 @@ def manage_haproxy_sections():
     frontend_rows = []
     for frontend in frontends:
         backend_name = frontend.backend.name if frontend.backend else None
-        backend_servers_count = len(frontend.backend.servers) if frontend.backend else 0
+        backend_servers_count = sum(
+            len(link.backend.servers)
+            for link in frontend.backend_links
+            if link.backend
+        )
         frontend_rows.append({
             'name': frontend.name,
             'domain': frontend.domain_name,

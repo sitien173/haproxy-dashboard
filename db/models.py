@@ -32,18 +32,13 @@ class BackendPool(db.Model):
     name = db.Column(db.String(128), unique=True, nullable=False)
     mode = db.Column(db.String(16), nullable=False)
     enabled = db.Column(db.Boolean, default=True, nullable=False)
-    health_check_enabled = db.Column(db.Boolean, default=False, nullable=False)
-    health_check_path = db.Column(db.String(255), nullable=True)
-    health_check_tcp = db.Column(db.Boolean, default=False, nullable=False)
     sticky_enabled = db.Column(db.Boolean, default=False, nullable=False)
     sticky_type = db.Column(db.String(32), nullable=True)
-    add_header_enabled = db.Column(db.Boolean, default=False, nullable=False)
-    header_name = db.Column(db.String(255), nullable=True)
-    header_value = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     servers = db.relationship("BackendServer", backref="backend", cascade="all, delete-orphan", lazy=True)
+    headers = db.relationship("BackendHeader", backref="backend", cascade="all, delete-orphan", lazy=True)
 
 
 class BackendServer(db.Model):
@@ -55,6 +50,21 @@ class BackendServer(db.Model):
     ip = db.Column(db.String(64), nullable=False)
     port = db.Column(db.String(16), nullable=False)
     maxconn = db.Column(db.String(16), nullable=True)
+    enabled = db.Column(db.Boolean, default=True, nullable=False)
+    health_check_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    health_check_path = db.Column(db.String(255), nullable=True)
+    health_check_tcp = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class BackendHeader(db.Model):
+    __tablename__ = 'backend_headers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    backend_id = db.Column(db.Integer, db.ForeignKey('backend_pools.id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    value = db.Column(db.String(255), nullable=True)
     enabled = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -88,9 +98,21 @@ class Frontend(db.Model):
 
     backend = db.relationship("BackendPool", backref="frontends", lazy=True)
     certificate = db.relationship("Certificate", lazy=True)
-    acl = db.relationship("FrontendAcl", uselist=False, backref="frontend", cascade="all, delete-orphan")
-    forbidden_path = db.relationship("FrontendForbiddenPath", uselist=False, backref="frontend", cascade="all, delete-orphan")
-    redirect_rule = db.relationship("FrontendRedirect", uselist=False, backref="frontend", cascade="all, delete-orphan")
+    backend_links = db.relationship("FrontendBackend", backref="frontend", cascade="all, delete-orphan")
+    acls = db.relationship("FrontendAcl", backref="frontend", cascade="all, delete-orphan")
+    forbidden_paths = db.relationship("FrontendForbiddenPath", backref="frontend", cascade="all, delete-orphan")
+    redirect_rules = db.relationship("FrontendRedirect", backref="frontend", cascade="all, delete-orphan")
+
+
+class FrontendBackend(db.Model):
+    __tablename__ = 'frontend_backends'
+
+    id = db.Column(db.Integer, primary_key=True)
+    frontend_id = db.Column(db.Integer, db.ForeignKey('frontends.id'), nullable=False)
+    backend_id = db.Column(db.Integer, db.ForeignKey('backend_pools.id'), nullable=False)
+    is_default = db.Column(db.Boolean, default=False, nullable=False)
+
+    backend = db.relationship("BackendPool", lazy=True)
 
 
 class FrontendAcl(db.Model):
